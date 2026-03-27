@@ -3,219 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UdhaarPro v11 - Modern SaaS</title>
+    <title>UdhaarPro v10</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; color: #1e293b; }
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #1e293b; overflow-x: hidden; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        
-        /* Reference UI Style Gradient */
-        .header-bg {
-            background: linear-gradient(135deg, #10b981 0%, #064e3b 100%);
-            border-radius: 0 0 40px 40px;
-        }
-
-        /* Modern Bottom Nav like Pink Image */
-        .mobile-nav { 
-            position: fixed; bottom: 0; left: 0; right: 0; 
-            background: white; height: 85px; 
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.05); 
-            display: flex; justify-content: space-around; align-items: center; 
-            z-index: 1000; padding-bottom: 15px;
-            border-radius: 30px 30px 0 0;
-        }
-        
-        .plus-btn {
-            background: #10b981;
-            width: 65px; height: 65px; border-radius: 22px;
-            display: flex; align-items: center; justify-content: center;
-            color: white; border: 6px solid #f8fafc;
-            box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
-            margin-top: -55px;
-            transition: all 0.3s ease;
-        }
-
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: #94a3b8; font-size: 10px; font-weight: 700; }
-        .nav-item.active { color: #10b981; }
-
-        /* Card Styles */
-        .glass-card { background: white; border-radius: 28px; border: 1px solid #f1f5f9; box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
-        .stat-pill { background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px); border-radius: 16px; padding: 6px 14px; font-size: 11px; color: white; }
-
+        .mobile-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; height: 75px; box-shadow: 0 -5px 25px rgba(0,0,0,0.05); display: flex; justify-content: space-around; align-items: center; z-index: 1000; padding: 0 10px; }
+        .plus-container { position: absolute; left: 50%; bottom: 25px; transform: translateX(-50%); z-index: 1001; display: flex; justify-content: center; align-items: center; }
+        .raised-btn { background: linear-gradient(135deg, #10b981 0%, #064e3b 100%); width: 68px; height: 68px; border-radius: 50%; display: flex !important; align-items: center !important; justify-content: center !important; color: white; border: 6px solid #f8fafc; box-shadow: 0 10px 20px rgba(6,78,59,0.3); padding: 0; margin: 0; cursor: pointer; }
+        @media (min-width: 768px) { .sidebar { width: 280px; height: 100vh; position: fixed; left: 0; top: 0; background: #064e3b; color: white; display: flex; flex-direction: column; z-index: 100; } .main-content { margin-left: 280px; padding: 30px; } .mobile-nav { display: none; } #search-inner-container { max-width: 800px; margin: 0 auto; } }
+        @media (max-width: 767px) { .sidebar { display: none; } .main-content { padding: 15px; margin-bottom: 100px; } .mobile-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } }
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
         #search-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; display: none; }
+        @media print { body * { visibility: hidden; } #receipt-printable, #receipt-printable * { visibility: visible; } #receipt-printable { position: absolute; left: 0; top: 0; width: 100%; } .no-print { display: none; } }
     </style>
 </head>
-<body class="pb-24">
+<body>
 
     <div id="search-popup" class="p-6">
-        <div class="flex items-center gap-4 mb-6">
-            <button onclick="toggleSearch()" class="p-3 bg-slate-100 rounded-2xl"><i data-lucide="arrow-left"></i></button>
-            <input type="text" id="search-input" onkeyup="filterSearch()" placeholder="Search client name..." class="flex-1 p-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-lg ring-2 ring-slate-100 focus:ring-emerald-500 transition-all">
+        <div id="search-inner-container">
+            <div class="flex items-center gap-4 mb-6">
+                <button onclick="toggleSearch()" class="p-2 bg-slate-100 rounded-full"><i data-lucide="arrow-left"></i></button>
+                <input type="text" id="search-input" onkeyup="filterSearch()" placeholder="Search customer or father name..." class="flex-1 p-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-lg ring-2 ring-slate-100 focus:ring-emerald-500 transition-all">
+            </div>
+            <div id="search-results" class="space-y-3"></div>
         </div>
-        <div id="search-results" class="space-y-3"></div>
     </div>
 
-    <header class="header-bg p-8 pb-14 text-white">
-        <div class="flex justify-between items-center mb-8">
+    <aside class="sidebar p-8 shadow-xl">
+        <h1 class="text-2xl font-black mb-12 flex items-center gap-3"><i data-lucide="shield-check"></i> UdhaarPro</h1>
+        <nav class="space-y-2">
+            <button onclick="showTab('dashboard')" class="w-full flex items-center gap-4 p-4 rounded-xl font-bold hover:bg-white/10" id="side-dashboard"><i data-lucide="layout-dashboard"></i> Dashboard</button>
+            <button onclick="showTab('customers')" class="w-full flex items-center gap-4 p-4 rounded-xl font-bold hover:bg-white/10" id="side-customers"><i data-lucide="users"></i> Customers</button>
+            <button onclick="showTab('transactions')" class="w-full flex items-center gap-4 p-4 rounded-xl font-bold hover:bg-white/10" id="side-transactions"><i data-lucide="history"></i> Records</button>
+            <button onclick="showTab('settings')" class="w-full flex items-center gap-4 p-4 rounded-xl font-bold hover:bg-white/10" id="side-settings"><i data-lucide="settings"></i> Settings</button>
+        </nav>
+    </aside>
+
+    <div class="main-content">
+        <header class="bg-[#064e3b] text-white p-5 mb-8 flex justify-between items-center rounded-2xl shadow-lg">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                    <i data-lucide="shield-check" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest">Welcome Back</p>
-                    <h1 id="app-title" class="text-xl font-black">UdhaarPro</h1>
-                </div>
+                <div id="back-btn" onclick="showTab('customers')" class="hidden bg-white/20 p-2 rounded-full cursor-pointer"><i data-lucide="arrow-left" class="w-5 h-5"></i></div>
+                <h1 id="app-title" class="text-lg font-black uppercase">UdhaarPro</h1>
             </div>
             <div class="flex gap-2">
-                <button onclick="toggleSearch()" class="p-3 bg-white/10 rounded-2xl backdrop-blur-md"><i data-lucide="search" class="w-5 h-5"></i></button>
-                <button onclick="refreshData()" class="p-3 bg-white/10 rounded-2xl backdrop-blur-md"><i id="refresh-icon" data-lucide="refresh-cw" class="w-5 h-5"></i></button>
+                <button onclick="toggleSearch()" class="p-2 bg-white/20 rounded-full"><i data-lucide="search" class="w-5 h-5"></i></button>
+                <button onclick="refreshData()" class="p-2 bg-white/20 rounded-full"><i id="refresh-icon" data-lucide="refresh-cw" class="w-5 h-5"></i></button>
             </div>
-        </div>
+        </header>
 
-        <div class="bg-white/10 border border-white/20 p-6 rounded-[35px] backdrop-blur-xl">
-            <div class="flex justify-between items-center mb-4">
-                <p class="text-[11px] font-bold opacity-80 uppercase tracking-widest">Market Balance</p>
-                <div class="stat-pill flex items-center gap-2"><span class="w-2 h-2 bg-emerald-400 rounded-full"></span> Live</div>
+        <section id="dashboard" class="tab-content active space-y-8">
+            <div class="mobile-grid-2 md:grid md:grid-cols-4 md:gap-6">
+                <div class="bg-indigo-600 p-8 rounded-xl text-white shadow-lg"><p class="text-[10px] font-bold opacity-70 uppercase mb-1">Total Given</p><h3 id="stat-given" class="text-lg font-black">PKR 0</h3></div>
+                <div class="bg-rose-500 p-8 rounded-xl text-white shadow-lg"><p class="text-[10px] font-bold opacity-70 uppercase mb-1">Remaining</p><h3 id="stat-udhaar" class="text-lg font-black">PKR 0</h3></div>
+                <div class="bg-emerald-600 p-8 rounded-xl text-white shadow-lg"><p class="text-[10px] font-bold opacity-70 uppercase mb-1">Collected</p><h3 id="stat-recovered" class="text-lg font-black">PKR 0</h3></div>
+                <div class="bg-amber-500 p-8 rounded-xl text-white shadow-lg"><p class="text-[10px] font-bold opacity-70 uppercase mb-1">Clients</p><h3 id="stat-customers" class="text-lg font-black">0</h3></div>
             </div>
-            <h2 id="stat-udhaar" class="text-4xl font-black mb-6 tracking-tight">PKR 0</h2>
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-white/5 p-3 rounded-2xl border border-white/5">
-                    <p class="text-[9px] opacity-60 font-bold uppercase">Total Given</p>
-                    <p id="stat-given" class="font-bold text-sm">PKR 0</p>
-                </div>
-                <div class="bg-white/5 p-3 rounded-2xl border border-white/5">
-                    <p class="text-[9px] opacity-60 font-bold uppercase">Collected</p>
-                    <p id="stat-recovered" class="font-bold text-sm text-emerald-300">PKR 0</p>
-                </div>
+            <div class="flex gap-4">
+                <button onclick="openEntryModal('existing')" class="flex-1 bg-slate-900 text-white py-5 rounded-3xl font-black flex items-center justify-center gap-2 shadow-xl"><i data-lucide="plus-circle"></i> Add Record</button>
+                <button onclick="openEntryModal('new')" class="flex-1 bg-white text-slate-900 border border-slate-200 py-5 rounded-3xl font-black flex items-center justify-center gap-2 shadow-sm"><i data-lucide="user-plus"></i> New Customer</button>
             </div>
-        </div>
-    </header>
-
-    <main class="px-6 -mt-8">
-        <section id="dashboard" class="tab-content active space-y-6">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="glass-card p-6 flex flex-col items-center text-center">
-                    <div class="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center mb-3"><i data-lucide="users" class="w-5 h-5"></i></div>
-                    <p class="text-[10px] font-extrabold text-slate-400 uppercase">Total Clients</p>
-                    <h3 id="stat-customers" class="text-xl font-black text-slate-800">0</h3>
-                </div>
-                <div onclick="openEntryModal('new')" class="glass-card p-6 flex flex-col items-center text-center border-dashed border-2 border-emerald-100 bg-emerald-50/30 cursor-pointer">
-                    <div class="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-emerald-200"><i data-lucide="user-plus" class="w-5 h-5"></i></div>
-                    <p class="text-xs font-black text-emerald-700">New Client</p>
-                </div>
-            </div>
-
-            <div class="glass-card overflow-hidden">
-                <div class="p-6 border-b flex justify-between items-center">
-                    <span class="font-black text-slate-800">Recent Records</span>
-                    <button onclick="showTab('transactions')" class="text-xs font-bold text-emerald-600">See All</button>
-                </div>
+            <div class="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
+                <div class="p-6 border-b font-black text-slate-800">Recent Transactions</div>
                 <div id="recent-txns" class="divide-y divide-slate-50"></div>
             </div>
         </section>
 
         <section id="customers" class="tab-content space-y-4">
-            <div id="customer-list-ui" class="space-y-4"></div>
+            <div id="customer-list-ui" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </section>
+
+        <section id="customer-profile" class="tab-content space-y-6">
+            <div id="profile-detail-view"></div>
         </section>
 
         <section id="transactions" class="tab-content space-y-4">
             <div id="full-txn-list" class="space-y-3"></div>
         </section>
 
-        <section id="settings" class="tab-content">
-            <div class="glass-card p-8">
-                <h3 class="text-xl font-black mb-6 text-center">Export Data</h3>
+        <section id="settings" class="tab-content space-y-6">
+            <div class="bg-white p-8 rounded-[2rem] border shadow-sm max-w-xl mx-auto">
+                <h3 class="text-xl font-bold mb-6 text-center">Statement Download</h3>
                 <div class="space-y-4 relative">
-                    <input type="text" id="statement-search" onfocus="filterStatementList()" onkeyup="filterStatementList()" placeholder="Search customer..." class="w-full p-4 bg-slate-50 rounded-2xl font-bold border-none outline-none ring-1 ring-slate-100 focus:ring-emerald-500">
-                    <div id="statement-dropdown" class="hidden absolute top-full left-0 right-0 z-50 border rounded-2xl max-h-60 overflow-y-auto bg-white shadow-2xl mt-2"></div>
-                    <div id="date-range-box" class="hidden space-y-4 p-5 bg-emerald-50 rounded-[25px] border border-emerald-100">
-                        <div class="flex justify-between items-center"><span class="text-xs font-black text-emerald-800" id="selected-cust-name">Selected: ...</span><button onclick="resetStatementSelection()" class="text-[10px] text-rose-500 font-bold uppercase">Change</button></div>
+                    <input type="text" id="statement-search" onfocus="filterStatementList()" onkeyup="filterStatementList()" placeholder="Type to search customer..." class="w-full p-4 bg-slate-50 rounded-xl font-bold border outline-none">
+                    <div id="statement-dropdown" class="hidden absolute top-full left-0 right-0 z-50 border rounded-xl max-h-60 overflow-y-auto bg-white shadow-xl mt-1"></div>
+                    <div id="date-range-box" class="hidden space-y-4 p-5 bg-emerald-50 rounded-2xl border border-emerald-100 mt-4">
+                        <div class="flex justify-between items-center mb-2"><span class="text-sm font-bold text-emerald-800" id="selected-cust-name">Selected: ...</span><button onclick="resetStatementSelection()" class="text-[10px] text-rose-500 font-bold uppercase">Change</button></div>
                         <div class="grid grid-cols-2 gap-4">
-                            <input type="date" id="start-date" class="w-full p-3 bg-white rounded-xl border-none font-bold text-xs">
-                            <input type="date" id="end-date" class="w-full p-3 bg-white rounded-xl border-none font-bold text-xs">
+                            <div><label class="text-[10px] font-bold text-slate-400 uppercase">Start Date</label><input type="date" id="start-date" class="w-full p-2 border rounded-lg"></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 uppercase">End Date</label><input type="date" id="end-date" class="w-full p-2 border rounded-lg"></div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                            <button onclick="downloadCSV()" class="bg-slate-800 text-white py-4 rounded-2xl font-black text-xs">CSV</button>
-                            <button onclick="generatePDF()" class="bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs">PDF</button>
+                            <button onclick="downloadCSV()" class="bg-slate-800 text-white py-4 rounded-xl font-black text-sm">Download CSV</button>
+                            <button onclick="generatePDF()" class="bg-emerald-600 text-white py-4 rounded-xl font-black text-sm">Download PDF</button>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
-
-        <section id="customer-profile" class="tab-content space-y-6">
-            <div id="profile-detail-view"></div>
-        </section>
-    </main>
+    </div>
 
     <nav class="mobile-nav">
-        <button onclick="showTab('dashboard')" class="nav-item active" id="nav-dashboard"><i data-lucide="layout-grid" class="w-6 h-6 mb-1"></i><span>Home</span></button>
-        <button onclick="showTab('customers')" class="nav-item mr-10" id="nav-customers"><i data-lucide="users" class="w-6 h-6 mb-1"></i><span>Clients</span></button>
-        <button onclick="openChoiceModal()" class="plus-btn"><i data-lucide="plus" class="w-9 h-9"></i></button>
-        <button onclick="showTab('transactions')" class="nav-item ml-10" id="nav-transactions"><i data-lucide="history" class="w-6 h-6 mb-1"></i><span>History</span></button>
-        <button onclick="showTab('settings')" class="nav-item" id="nav-settings"><i data-lucide="settings" class="w-6 h-6 mb-1"></i><span>Settings</span></button>
+        <button onclick="showTab('dashboard')"><i id="m-icon-dashboard" data-lucide="layout-grid" class="w-6 h-6"></i></button>
+        <button onclick="showTab('customers')" class="mr-14"><i id="m-icon-customers" data-lucide="users" class="w-6 h-6"></i></button>
+        <div class="plus-container">
+            <button onclick="openChoiceModal()" class="raised-btn"><i data-lucide="plus" class="w-8 h-8"></i></button>
+        </div>
+        <button onclick="showTab('transactions')" class="ml-14"><i id="m-icon-transactions" data-lucide="history" class="w-6 h-6"></i></button>
+        <button onclick="showTab('settings')"><i id="m-icon-settings" data-lucide="settings" class="w-6 h-6"></i></button>
     </nav>
 
-    <div id="modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[3000] hidden flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl">
-            <div class="flex justify-between items-center mb-6"><h3 id="modal-title-text" class="text-xl font-black">New Entry</h3><button onclick="closeModal()"><i data-lucide="x"></i></button></div>
+    <div id="edit-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[4000] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl">
+            <h3 class="text-xl font-black mb-6">Edit Customer</h3>
+            <div class="space-y-4">
+                <input type="hidden" id="edit-old-name">
+                <input type="text" id="edit-new-name" placeholder="New Name" class="w-full bg-slate-100 p-4 rounded-xl font-bold border">
+                <input type="text" id="edit-new-father" placeholder="New Father Name" class="w-full bg-slate-100 p-4 rounded-xl font-bold border">
+                <div class="flex gap-2 pt-4">
+                    <button onclick="saveCustomerEdit()" id="editSaveBtn" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-black">Save Changes</button>
+                    <button onclick="closeEditModal()" class="px-6 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="receipt-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[5000] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl">
+            <div id="receipt-printable" class="p-8 bg-white text-sm">
+                <div class="text-center mb-6 border-b pb-4"><h2 class="text-2xl font-black text-[#064e3b]">UdhaarPro</h2><p class="text-[10px] text-slate-400 uppercase">Receipt</p></div>
+                <div class="space-y-4">
+                    <div class="flex justify-between"><span>Date:</span><span id="r-date" class="font-bold"></span></div>
+                    <div class="flex justify-between"><span>Customer:</span><span id="r-name" class="font-bold"></span></div>
+                    <div class="flex justify-between border-t pt-4"><span>Type:</span><span id="r-type" class="font-bold uppercase"></span></div>
+                    <div class="flex justify-between"><span>Amount:</span><span id="r-amount" class="font-black text-lg"></span></div>
+                    <div id="r-desc-container" class="flex flex-col border-t pt-4"><span>Note:</span><span id="r-desc" class="italic font-bold"></span></div>
+                    <div class="flex justify-between border-t pt-4 bg-slate-50 p-2 rounded-lg font-black text-rose-600"><span>Final Bal:</span><span id="r-balance"></span></div>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 flex gap-3 no-print"><button onclick="window.print()" class="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold">Print</button><button onclick="closeReceipt()" class="px-6 bg-slate-200 py-3 rounded-xl font-bold">Close</button></div>
+        </div>
+    </div>
+
+    <div id="choice-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2500] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative">
+            <button onclick="closeChoiceModal()" class="absolute top-6 right-6 p-2 bg-slate-100 rounded-full"><i data-lucide="x" class="w-4 h-4"></i></button>
+            <h3 class="text-xl font-black text-center mb-8">Choose Action</h3>
+            <div class="space-y-4">
+                <button onclick="handleChoice('existing')" class="w-full flex items-center gap-4 bg-slate-900 text-white p-6 rounded-[1.5rem]"><i data-lucide="plus-circle"></i> Add Record</button>
+                <button onclick="handleChoice('new')" class="w-full flex items-center gap-4 bg-white border-2 p-6 rounded-[1.5rem] text-slate-800"><i data-lucide="user-plus"></i> New Customer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[3000] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl">
+            <div class="flex justify-between items-center mb-6"><h3 id="modal-title-text" class="text-xl font-bold">New Entry</h3><button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-full"><i data-lucide="x"></i></button></div>
             <form id="txnForm" class="space-y-4">
-                <div id="name-input-container"><select id="m-name-select" onchange="calculateRealTime()" class="w-full bg-slate-100 p-4 rounded-2xl font-bold appearance-none"></select></div>
-                <div id="new-name-container" class="hidden space-y-4"><input type="text" id="m-name-text" placeholder="Full Name" class="w-full bg-slate-100 p-4 rounded-2xl font-bold"> <input type="text" id="m-father-name" placeholder="Father Name" class="w-full bg-slate-100 p-4 rounded-2xl font-bold"></div>
-                <div class="grid grid-cols-2 gap-3">
-                    <button type="button" onclick="setType('Udhaar')" id="btn-udhaar" class="p-4 rounded-2xl border-2 font-black transition-all">Udhaar (+)</button>
-                    <button type="button" onclick="setType('Paid')" id="btn-paid" class="p-4 rounded-2xl border-2 font-black transition-all">Paid (-)</button>
+                <div id="name-input-container"><select id="m-name-select" onchange="calculateRealTime()" class="w-full bg-slate-100 p-4 rounded-xl font-bold"></select></div>
+                <div id="new-name-container" class="hidden space-y-4">
+                    <input type="text" id="m-name-text" placeholder="Full Name" class="w-full bg-slate-100 p-4 rounded-xl border">
+                    <input type="text" id="m-father-name" placeholder="Father Name" class="w-full bg-slate-100 p-4 rounded-xl border">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button type="button" onclick="setType('Udhaar')" id="btn-udhaar" class="p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold">Udhaar (+)</button>
+                    <button type="button" onclick="setType('Paid')" id="btn-paid" class="p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400">Paid (-)</button>
                 </div>
                 <input type="hidden" id="m-type" value="Udhaar">
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="number" id="m-amount" onkeyup="calculateRealTime()" required placeholder="Amount" class="w-full bg-slate-100 p-4 rounded-2xl font-black text-lg">
-                    <div class="bg-slate-900 rounded-2xl p-3 flex flex-col items-center justify-center text-white"><p class="text-[7px] text-emerald-400 uppercase">Preview Bal</p><p id="calc-preview" class="text-xs font-black">0</p></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="number" id="m-amount" onkeyup="calculateRealTime()" required placeholder="0" class="w-full bg-slate-100 p-4 rounded-xl font-black text-xl">
+                    <div class="bg-slate-900 rounded-xl p-4 text-center text-white"><p class="text-[8px] text-emerald-400 uppercase">Estimated Bal</p><p id="calc-preview" class="text-xs font-black">0</p></div>
                 </div>
-                <input type="text" id="m-desc" placeholder="Note (Optional)" class="w-full bg-slate-100 p-4 rounded-2xl font-bold">
-                <button type="submit" id="saveBtn" class="w-full bg-emerald-600 text-white py-5 rounded-[22px] font-black shadow-lg shadow-emerald-100">Save Record</button>
+                <input type="text" id="m-desc" placeholder="Details (Note)" class="w-full bg-slate-100 p-4 rounded-xl">
+                <button type="submit" id="saveBtn" class="w-full bg-[#064e3b] text-white py-5 rounded-2xl font-black shadow-lg">Confirm & Save</button>
             </form>
         </div>
     </div>
 
-    <div id="receipt-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[5000] hidden flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-sm rounded-[35px] overflow-hidden shadow-2xl">
-            <div id="receipt-printable" class="p-8 bg-white text-sm">
-                <div class="text-center mb-6 border-b pb-4"><h2 class="text-2xl font-black text-emerald-700">UdhaarPro</h2><p class="text-[10px] text-slate-400 uppercase">Official Receipt</p></div>
-                <div class="space-y-3">
-                    <div class="flex justify-between"><span>Date:</span><span id="r-date" class="font-bold"></span></div>
-                    <div class="flex justify-between"><span>Customer:</span><span id="r-name" class="font-bold"></span></div>
-                    <div class="flex justify-between pt-2 border-t"><span>Transaction:</span><span id="r-type" class="font-bold uppercase"></span></div>
-                    <div class="flex justify-between"><span>Amount:</span><span id="r-amount" class="font-black text-lg text-slate-800"></span></div>
-                    <div class="flex justify-between pt-4 border-t font-black text-rose-600 bg-rose-50 p-3 rounded-2xl"><span>Current Bal:</span><span id="r-balance"></span></div>
-                </div>
-            </div>
-            <div class="p-4 bg-slate-50 flex gap-3"><button onclick="window.print()" class="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold">Print</button><button onclick="closeReceipt()" class="px-6 bg-slate-200 py-4 rounded-2xl font-bold">Close</button></div>
-        </div>
-    </div>
-
-    <div id="choice-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2500] hidden flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-xs rounded-[40px] p-8 shadow-2xl relative">
-            <h3 class="text-lg font-black text-center mb-8">Fast Action</h3>
-            <div class="space-y-4">
-                <button onclick="handleChoice('existing')" class="w-full flex items-center justify-between bg-slate-900 text-white p-5 rounded-2xl font-bold"><span>Add Record</span><i data-lucide="plus-circle"></i></button>
-                <button onclick="handleChoice('new')" class="w-full flex items-center justify-between bg-emerald-50 text-emerald-700 p-5 rounded-2xl font-bold border border-emerald-100"><span>New Customer</span><i data-lucide="user-plus"></i></button>
-                <button onclick="closeChoiceModal()" class="w-full text-center text-slate-400 font-bold pt-2">Cancel</button>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // --- FIREBASE CONFIG (Aapka Purana Config) ---
+        // --- FIREBASE CONFIG (Yahan apni details paste karen) ---
         const firebaseConfig = {
             apiKey: "AIzaSyANM3X8DyEji1hUqOOHV7SIBaEXxnvgW7k",
             authDomain: "udhaarpro.firebaseapp.com",
@@ -254,12 +228,8 @@
                 allTxns.push(txnObj); customers[t.name].history.push(txnObj);
             });
             const cList = Object.values(customers).sort((a,b) => a.name.localeCompare(b.name));
-            appData = { 
-                customers: cList, 
-                allTransactions: [...allTxns].reverse(), 
-                recentTransactions: allTxns.slice(-10).reverse(),
-                summary: { totalGivenEver, marketBalance: cList.reduce((a,b)=>a+(b.balance>0?b.balance:0),0), totalRecovered, totalCustomers: cList.length } 
-            };
+            appData = { customers: cList, allTransactions: [...allTxns].reverse(), recentTransactions: allTxns.slice(-10).reverse(),
+                        summary: { totalGivenEver, marketBalance: cList.reduce((a,b)=>a+(b.balance>0?b.balance:0),0), totalRecovered, totalCustomers: cList.length } };
             renderUI(appData);
         }
 
@@ -270,29 +240,26 @@
             document.getElementById('stat-customers').innerText = data.summary.totalCustomers;
             
             document.getElementById('recent-txns').innerHTML = data.recentTransactions.map(t => `
-                <div onclick="openReceipt('${t.id}')" class="p-5 flex justify-between items-center text-sm font-bold cursor-pointer hover:bg-slate-50 transition-all">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 rounded-2xl flex items-center justify-center ${t.type==='Udhaar'?'bg-rose-50 text-rose-500':'bg-emerald-50 text-emerald-500'}"><i data-lucide="${t.type==='Udhaar'?'arrow-up-right':'arrow-down-left'}" class="w-5 h-5"></i></div>
-                        <div><p class="text-slate-800">${t.name}</p><p class="text-[9px] text-slate-400 uppercase font-extrabold tracking-widest">${t.date}</p></div>
+                <div onclick="openReceipt('${t.id}')" class="p-5 flex justify-between items-center text-sm font-bold cursor-pointer hover:bg-slate-50">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-full ${t.type==='Udhaar'?'bg-rose-50 text-rose-500':'bg-emerald-50 text-emerald-500'}"><i data-lucide="${t.type==='Udhaar'?'arrow-up-right':'arrow-down-left'}" class="w-4 h-4"></i></div>
+                        <div><p>${t.name}</p><p class="text-[9px] text-slate-400 uppercase">${t.date}</p></div>
                     </div>
                     <p class="${t.type === 'Udhaar' ? 'text-rose-500' : 'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p>
                 </div>`).join('');
 
             document.getElementById('customer-list-ui').innerHTML = data.customers.map(c => `
-                <div onclick="viewCustomer('${c.name}')" class="glass-card p-6 flex justify-between items-center cursor-pointer hover:scale-[1.02] transition-all">
-                    <div class="flex gap-4 items-center">
-                        <div class="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center font-black text-slate-400">${c.name[0]}</div>
-                        <div><h4 class="font-black text-slate-800">${c.name}</h4><p class="text-[10px] text-slate-400 font-bold uppercase">${c.fatherName ? 'S/O '+c.fatherName : 'No Details'}</p></div>
+                <div class="bg-white p-6 rounded-[2rem] shadow-sm flex justify-between items-center border-l-8 ${c.balance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}">
+                    <div onclick="viewCustomer('${c.name}')" class="flex-1 cursor-pointer">
+                        <h4 class="font-black text-slate-800 text-lg">${c.name} <span class="text-xs font-normal text-slate-400">${c.fatherName ? '('+c.fatherName+')' : ''}</span></h4>
+                        <p class="text-xl font-black ${c.balance > 0 ? 'text-rose-500' : 'text-emerald-600'}">PKR ${c.balance.toLocaleString()}</p>
                     </div>
-                    <div class="text-right"><p class="text-lg font-black ${c.balance > 0 ? 'text-rose-500' : 'text-emerald-600'}">PKR ${c.balance.toLocaleString()}</p></div>
+                    <button onclick="confirmDelete('${c.name}')" class="p-3 text-rose-500 hover:bg-rose-50 rounded-2xl"><i data-lucide="trash-2"></i></button>
                 </div>`).join('');
 
             document.getElementById('full-txn-list').innerHTML = data.allTransactions.map(t => `
-                <div onclick="openReceipt('${t.id}')" class="glass-card p-5 flex justify-between items-center font-bold text-sm cursor-pointer hover:border-emerald-200">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-xl flex items-center justify-center ${t.type==='Udhaar'?'bg-rose-50 text-rose-500':'bg-emerald-50 text-emerald-500'}"><i data-lucide="hash" class="w-4 h-4"></i></div>
-                        <div><p>${t.name}</p><p class="text-[9px] text-slate-400 uppercase tracking-widest">${t.date} • ${t.type}</p></div>
-                    </div>
+                <div onclick="openReceipt('${t.id}')" class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm font-bold text-sm cursor-pointer border border-transparent hover:border-slate-200">
+                    <div><p>${t.name}</p><p class="text-[9px] text-slate-400 uppercase">${t.date} • ${t.type}</p></div>
                     <p class="${t.type === 'Udhaar' ? 'text-rose-500' : 'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p>
                 </div>`).join('');
 
@@ -300,12 +267,46 @@
             lucide.createIcons();
         }
 
+        // --- RECEIPT & CALC LOGIC ---
+        function openReceipt(txnId) {
+            const txn = appData.allTransactions.find(t => t.id == txnId);
+            if(!txn) return;
+            const cust = appData.customers.find(c => c.name === txn.name);
+            document.getElementById('r-date').innerText = txn.date;
+            document.getElementById('r-name').innerText = txn.name + (txn.fatherName ? ' ('+txn.fatherName+')' : '');
+            document.getElementById('r-type').innerText = txn.type;
+            document.getElementById('r-amount').innerText = "PKR " + Number(txn.amount).toLocaleString();
+            document.getElementById('r-balance').innerText = "PKR " + (cust ? cust.balance.toLocaleString() : '0');
+            document.getElementById('r-desc').innerText = txn.description || '-';
+            document.getElementById('receipt-modal').classList.remove('hidden');
+        }
+
+        function calculateRealTime() {
+            let bal = 0; let name = (currentMode === 'fixed') ? window.tempFixedName : (currentMode === 'existing' ? document.getElementById('m-name-select').value : "");
+            const c = appData.customers.find(x => x.name === name); if(c) bal = c.balance;
+            const amt = Number(document.getElementById('m-amount').value) || 0;
+            const res = (document.getElementById('m-type').value === 'Udhaar') ? (bal + amt) : (bal - amt);
+            document.getElementById('calc-preview').innerText = "PKR " + res.toLocaleString();
+        }
+
+        function saveCustomerEdit() {
+            const oldN = document.getElementById('edit-old-name').value;
+            const newN = document.getElementById('edit-new-name').value;
+            const newF = document.getElementById('edit-new-father').value;
+            const updates = {};
+            appData.allTransactions.filter(t => t.name === oldN).forEach(t => {
+                updates[`/transactions/${t.id}/name`] = newN;
+                updates[`/transactions/${t.id}/fatherName`] = newF;
+            });
+            db.ref().update(updates).then(() => { closeEditModal(); refreshData(); showTab('customers'); });
+        }
+
+        // --- UI UTILS ---
         function showTab(id) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            const navBtn = document.getElementById('nav-' + id); if(navBtn) navBtn.classList.add('active');
-            document.getElementById('app-title').innerText = id === 'dashboard' ? 'UdhaarPro' : id.toUpperCase();
+            document.getElementById('back-btn').classList.toggle('hidden', id !== 'customer-profile');
+            document.getElementById('app-title').innerText = id.toUpperCase();
             lucide.createIcons();
         }
 
@@ -315,98 +316,32 @@
             document.getElementById('name-input-container').classList.toggle('hidden', mode === 'new' || mode === 'fixed');
             document.getElementById('new-name-container').classList.toggle('hidden', mode !== 'new');
             if(mode === 'fixed') { document.getElementById('modal-title-text').innerText = fixedName; window.tempFixedName = fixedName; }
-            else { document.getElementById('modal-title-text').innerText = (mode==='new'?"New Client":"Record Entry"); }
+            else { document.getElementById('modal-title-text').innerText = (mode==='new'?"New Customer":"Add Record"); }
             calculateRealTime();
         }
 
         document.getElementById('txnForm').onsubmit = (e) => {
             e.preventDefault();
-            const btn = document.getElementById('saveBtn'); btn.innerText = "Processing..."; btn.disabled = true;
+            const btn = document.getElementById('saveBtn'); btn.innerText = "Saving..."; btn.disabled = true;
             let n = (currentMode === 'fixed') ? window.tempFixedName : (currentMode === 'new' ? document.getElementById('m-name-text').value : document.getElementById('m-name-select').value);
             let f = (currentMode === 'new') ? document.getElementById('m-father-name').value : (appData.customers.find(c=>c.name===n)?.fatherName || "");
             const data = { name: n, fatherName: f, amount: document.getElementById('m-amount').value, type: document.getElementById('m-type').value, description: document.getElementById('m-desc').value, date: new Date().toLocaleDateString('en-GB'), timestamp: Date.now() };
-            db.ref('transactions').push(data).then(() => { closeModal(); e.target.reset(); btn.innerText = "Save Record"; btn.disabled = false; });
+            db.ref('transactions').push(data).then(() => { closeModal(); e.target.reset(); btn.innerText = "Confirm & Save"; btn.disabled = false; });
         };
 
-        function setType(t) { 
-            document.getElementById('m-type').value = t; 
-            const u = document.getElementById('btn-udhaar'), p = document.getElementById('btn-paid');
-            if(t==='Udhaar') { u.className = "p-4 rounded-2xl border-2 border-rose-500 bg-rose-50 text-rose-700 font-black flex-1"; p.className="p-4 rounded-2xl border-2 border-slate-50 text-slate-300 font-bold flex-1"; }
-            else { p.className = "p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-black flex-1"; u.className="p-4 rounded-2xl border-2 border-slate-50 text-slate-300 font-bold flex-1"; }
-            calculateRealTime(); 
-        }
-
-        function viewCustomer(name) {
-            const c = appData.customers.find(x => x.name === name); if(!c) return;
-            showTab('customer-profile');
-            document.getElementById('profile-detail-view').innerHTML = `
-                <div class="header-bg p-8 pb-12 text-white mb-6 relative shadow-2xl">
-                    <button onclick="showTab('customers')" class="mb-6 bg-white/10 p-2 rounded-xl"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
-                    <h2 class="text-3xl font-black mb-1">${c.name}</h2><p class="text-white/60 font-bold text-sm tracking-widest">${c.fatherName ? 'S/O ' + c.fatherName : ''}</p>
-                    <div class="grid grid-cols-3 gap-2 mt-8 text-center">
-                        <div class="bg-white/10 p-3 rounded-2xl"><p class="text-[8px] opacity-60 uppercase font-black">Given</p><p class="text-xs font-bold">${c.totalUdhaar.toLocaleString()}</p></div>
-                        <div class="bg-white/10 p-3 rounded-2xl"><p class="text-[8px] opacity-60 uppercase font-black">Paid</p><p class="text-xs font-bold">${c.totalPaid.toLocaleString()}</p></div>
-                        <div class="bg-emerald-400 text-emerald-900 p-3 rounded-2xl"><p class="text-[8px] opacity-70 uppercase font-black">Balance</p><p class="text-xs font-black">${c.balance.toLocaleString()}</p></div>
-                    </div>
-                    <button onclick="openEntryModal('fixed', '${c.name}')" class="w-full bg-white text-emerald-900 py-4 rounded-2xl font-black mt-8 shadow-xl">ADD NEW RECORD</button>
-                </div>
-                <div class="glass-card overflow-hidden mx-6">
-                    <div class="p-5 font-black border-b text-slate-700 bg-slate-50/50">Ledger History</div>
-                    <div class="divide-y divide-slate-100">${c.history.slice().reverse().map(h => `
-                        <div onclick="openReceipt('${h.id}')" class="p-5 flex justify-between items-center text-sm font-bold cursor-pointer">
-                            <div><p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">${h.date}</p><p class="text-slate-700 text-xs">${h.description || 'No note added'}</p></div>
-                            <p class="${h.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">${h.type==='Udhaar'?'+':'-'} ${h.amount.toLocaleString()}</p>
-                        </div>`).join('')}</div>
-                </div>`;
-            lucide.createIcons();
-        }
-
-        // --- Helper Functions ---
-        function calculateRealTime() {
-            let bal = 0; let name = (currentMode === 'fixed') ? window.tempFixedName : (currentMode === 'existing' ? document.getElementById('m-name-select').value : "");
-            const c = appData.customers.find(x => x.name === name); if(c) bal = c.balance;
-            const amt = Number(document.getElementById('m-amount').value) || 0;
-            const res = (document.getElementById('m-type').value === 'Udhaar') ? (bal + amt) : (bal - amt);
-            document.getElementById('calc-preview').innerText = "PKR " + res.toLocaleString();
-        }
-        function openReceipt(txnId) {
-            const txn = appData.allTransactions.find(t => t.id == txnId); if(!txn) return;
-            const cust = appData.customers.find(c => c.name === txn.name);
-            document.getElementById('r-date').innerText = txn.date;
-            document.getElementById('r-name').innerText = txn.name + (txn.fatherName ? ' ('+txn.fatherName+')' : '');
-            document.getElementById('r-type').innerText = txn.type;
-            document.getElementById('r-amount').innerText = "PKR " + Number(txn.amount).toLocaleString();
-            document.getElementById('r-balance').innerText = "PKR " + (cust ? cust.balance.toLocaleString() : '0');
-            document.getElementById('receipt-modal').classList.remove('hidden');
-        }
-        function closeReceipt() { document.getElementById('receipt-modal').classList.add('hidden'); }
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        function openChoiceModal() { document.getElementById('choice-modal').classList.remove('hidden'); }
-        function closeChoiceModal() { document.getElementById('choice-modal').classList.add('hidden'); }
-        function handleChoice(m) { closeChoiceModal(); openEntryModal(m); }
-        function toggleSearch() { const el = document.getElementById('search-popup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }
-        function filterSearch() {
-            const q = document.getElementById('search-input').value.toLowerCase();
-            const res = document.getElementById('search-results'); if(!q) return res.innerHTML = '';
-            res.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q)).map(c => `
-                <div onclick="toggleSearch(); viewCustomer('${c.name}')" class="glass-card p-5 flex justify-between items-center cursor-pointer">
-                    <div><p class="font-black text-slate-800">${c.name}</p><p class="text-[10px] text-slate-400">Balance: PKR ${c.balance.toLocaleString()}</p></div><i data-lucide="chevron-right" class="text-slate-300"></i>
-                </div>`).join('');
-            lucide.createIcons();
-        }
-
-        // PDF & CSV Logic (Purani same logic customized for new UI)
+        // --- Baki functions (PDF, Search, Modal) wahi purani logic ---
         function generatePDF() {
-            const start = document.getElementById('start-date').value, end = document.getElementById('end-date').value;
-            if(!start || !end) return alert("Please select dates");
+            const start = document.getElementById('start-date').value; const end = document.getElementById('end-date').value;
+            if(!start || !end) return alert("Select dates");
             const cust = appData.customers.find(c => c.name === selectedStatementCust);
             const { jsPDF } = window.jspdf; const doc = new jsPDF();
-            doc.setFontSize(22); doc.setTextColor(6, 78, 59); doc.text("UdhaarPro Ledger", 15, 20);
-            doc.setFontSize(10); doc.setTextColor(100); doc.text(`Customer: ${cust.name} | Statement: ${start} to ${end}`, 15, 30);
+            doc.setFontSize(20); doc.text("UdhaarPro Statement", 15, 20);
+            doc.setFontSize(10); doc.text(`Customer: ${cust.name} | Period: ${start} to ${end}`, 15, 30);
             const body = cust.history.map(t => [t.date, t.type, t.description || '-', t.amount.toLocaleString()]);
-            doc.autoTable({ startY: 40, head: [['Date', 'Type', 'Description', 'Amount']], body: body, headStyles: {fillColor:[16, 185, 129]} });
-            doc.save(`${cust.name}_UdhaarPro.pdf`);
+            doc.autoTable({ startY: 40, head: [['Date', 'Type', 'Description', 'Amount']], body: body, headStyles: {fillColor:[6,78,59]} });
+            doc.save(`${cust.name}_Statement.pdf`);
         }
+
         function downloadCSV() {
             const cust = appData.customers.find(c => c.name === selectedStatementCust);
             let csv = "Date,Type,Amount,Description\n";
@@ -415,15 +350,61 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `${cust.name}.csv`; a.click();
         }
+
         function filterStatementList() {
             const q = document.getElementById('statement-search').value.toLowerCase();
-            const d = document.getElementById('statement-dropdown'); d.classList.remove('hidden');
-            d.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q)).map(c => `<div onclick="selectStatementCust('${c.name}')" class="p-4 hover:bg-emerald-50 border-b cursor-pointer font-bold text-sm">${c.name}</div>`).join('');
+            const dropdown = document.getElementById('statement-dropdown');
+            dropdown.classList.remove('hidden');
+            dropdown.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q)).map(c => `<div onclick="selectStatementCust('${c.name}')" class="p-4 hover:bg-emerald-50 border-b cursor-pointer font-bold">${c.name}</div>`).join('');
         }
-        function selectStatementCust(n) { selectedStatementCust = n; document.getElementById('selected-cust-name').innerText = "Selected: " + n; document.getElementById('date-range-box').classList.remove('hidden'); document.getElementById('statement-dropdown').classList.add('hidden'); document.getElementById('statement-search').classList.add('hidden'); }
+        function selectStatementCust(n) { selectedStatementCust = n; document.getElementById('selected-cust-name').innerText = "Selected: " + n; document.getElementById('date-range-box').classList.remove('hidden'); document.getElementById('statement-dropdown').classList.add('hidden'); }
         function resetStatementSelection() { document.getElementById('date-range-box').classList.add('hidden'); document.getElementById('statement-search').classList.remove('hidden'); }
-
-        window.onload = () => { refreshData(); lucide.createIcons(); };
+        function setType(t) { document.getElementById('m-type').value = t; setTypeStyles(t); calculateRealTime(); }
+        function setTypeStyles(t) { document.getElementById('btn-udhaar').className = t === 'Udhaar' ? 'p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold' : 'p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400'; document.getElementById('btn-paid').className = t === 'Paid' ? 'p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-black' : 'p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400'; }
+        function viewCustomer(name) {
+            const c = appData.customers.find(x => x.name === name); if(!c) return;
+            showTab('customer-profile');
+            document.getElementById('profile-detail-view').innerHTML = `
+                <div class="bg-[#064e3b] p-8 rounded-[2.5rem] text-white shadow-xl mb-6 relative">
+                    <button onclick="openEditModal('${c.name}', '${c.fatherName}')" class="absolute top-8 right-8 p-3 bg-white/10 rounded-full"><i data-lucide="edit-3" class="w-5 h-5"></i></button>
+                    <h2 class="text-3xl font-black mb-1">${c.name}</h2><p class="text-white/60 mb-8 font-bold">${c.fatherName ? 'S/O ' + c.fatherName : ''}</p>
+                    <div class="grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
+                        <div class="bg-white/10 p-3 rounded-2xl">Taken<br>${c.totalUdhaar.toLocaleString()}</div>
+                        <div class="bg-white/10 p-3 rounded-2xl">Paid<br>${c.totalPaid.toLocaleString()}</div>
+                        <div class="bg-white/20 p-3 rounded-2xl border border-white/10 text-emerald-300">Bal<br>${c.balance.toLocaleString()}</div>
+                    </div>
+                    <button onclick="openEntryModal('fixed', '${c.name}')" class="w-full bg-white text-[#064e3b] py-4 rounded-2xl font-black mt-8 shadow-lg uppercase">Add New Record</button>
+                </div>
+                <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden">
+                    <div class="p-5 font-black border-b text-slate-700">History Log</div>
+                    <div class="divide-y">${c.history.slice().reverse().map(h => `
+                        <div onclick="openReceipt('${h.id}')" class="p-4 flex justify-between items-center text-sm font-bold cursor-pointer">
+                            <div><p class="text-xs uppercase">${h.date}</p><p class="text-[10px] text-slate-400 font-normal">${h.description || ''}</p></div>
+                            <p class="${h.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">${h.type==='Udhaar'?'+':'-'} PKR ${h.amount.toLocaleString()}</p>
+                        </div>`).join('')}</div>
+                </div>`;
+            lucide.createIcons();
+        }
+        function openEditModal(n, f) { document.getElementById('edit-old-name').value = n; document.getElementById('edit-new-name').value = n; document.getElementById('edit-new-father').value = f || ""; document.getElementById('edit-modal').classList.remove('hidden'); }
+        function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
+        function closeReceipt() { document.getElementById('receipt-modal').classList.add('hidden'); }
+        function toggleSearch() { const el = document.getElementById('search-popup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }
+        function filterSearch() {
+            const q = document.getElementById('search-input').value.toLowerCase();
+            const res = document.getElementById('search-results'); if(!q) return res.innerHTML = '';
+            res.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q) || (c.fatherName && c.fatherName.toLowerCase().includes(q))).map(c => `
+                <div onclick="toggleSearch(); viewCustomer('${c.name}')" class="p-5 bg-slate-50 rounded-2xl font-bold flex justify-between items-center border cursor-pointer">
+                    <div><p>${c.name}</p><p class="text-[10px] text-slate-400">Balance: PKR ${c.balance.toLocaleString()}</p></div><i data-lucide="chevron-right"></i>
+                </div>`).join('');
+            lucide.createIcons();
+        }
+        function confirmDelete(n) { if(confirm("Delete " + n + "?")) { const updates = {}; appData.allTransactions.filter(t=>t.name===n).forEach(t=> updates[`/transactions/${t.id}`] = null); db.ref().update(updates); } }
+        function openChoiceModal() { document.getElementById('choice-modal').classList.remove('hidden'); }
+        function closeChoiceModal() { document.getElementById('choice-modal').classList.add('hidden'); }
+        function handleChoice(m) { closeChoiceModal(); openEntryModal(m); }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        window.onclick = (e) => { if(!e.target.closest('#statement-search') && !e.target.closest('#statement-dropdown')) document.getElementById('statement-dropdown').classList.add('hidden'); };
+        window.onload = () => { lucide.createIcons(); refreshData(); };
     </script>
 </body>
 </html>
