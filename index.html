@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Crypto JS for Hashing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -23,11 +25,40 @@
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         #search-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; display: none; }
+        
+        /* LOCK SCREEN STYLE */
+        #app-lock { position: fixed; inset: 0; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(25px); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .pin-box { background: white; padding: 2.5rem; border-radius: 3rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2); border: 1px solid rgba(0,0,0,0.05); text-align: center; width: 90%; max-width: 380px; }
+        .digit-input { width: 50px; height: 60px; border-radius: 12px; background: #f1f5f9; border: 2px solid transparent; text-align: center; font-size: 1.5rem; font-weight: 800; outline: none; transition: all 0.2s; }
+        .digit-input:focus { border-color: #10b981; background: white; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
+        .shake { animation: shake 0.4s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
         @media print { body * { visibility: hidden; } #receipt-printable, #receipt-printable * { visibility: visible; } #receipt-printable { position: absolute; left: 0; top: 0; width: 100%; } .no-print { display: none; } }
     </style>
 </head>
-<body>
+<body class="overflow-hidden">
 
+    <!-- SECURE LOCK OVERLAY -->
+    <div id="app-lock">
+        <div class="pin-box" id="pin-card">
+            <div class="mb-6">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-100">
+                    <i data-lucide="shield-check" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800">UdhaarPro Lock</h2>
+                <p class="text-slate-400 text-sm font-medium">Enter PIN to Unlock</p>
+            </div>
+            <div class="flex justify-center gap-3 mb-6">
+                <input type="password" maxlength="1" class="digit-input" id="d1" onkeyup="moveTab(this, 'd2')" inputmode="numeric">
+                <input type="password" maxlength="1" class="digit-input" id="d2" onkeyup="moveTab(this, 'd3')" inputmode="numeric">
+                <input type="password" maxlength="1" class="digit-input" id="d3" onkeyup="moveTab(this, 'd4')" inputmode="numeric">
+                <input type="password" maxlength="1" class="digit-input" id="d4" onkeyup="checkAndUnlock()" inputmode="numeric">
+            </div>
+            <p id="lock-error" class="text-rose-500 text-[10px] font-bold uppercase tracking-widest hidden">Access Denied! Incorrect PIN</p>
+        </div>
+    </div>
+
+    <!-- MAIN UI START -->
     <div id="search-popup" class="p-6">
         <div id="search-inner-container">
             <div class="flex items-center gap-4 mb-6">
@@ -61,77 +92,35 @@
         </header>
 
         <section id="dashboard" class="tab-content active space-y-8">
-            <!-- Stats for Desktop (Original Design) -->
             <div class="hidden md:grid md:grid-cols-4 md:gap-6">
                 <div class="bg-indigo-600 p-8 rounded-xl text-white shadow-lg flex flex-col justify-between">
                     <p class="text-[10px] font-bold opacity-70 uppercase mb-1">Total Given</p>
-                    <div class="flex items-center justify-between">
-                        <h3 id="stat-given" class="text-lg font-black text-white">PKR 0</h3>
-                        <div class="p-2 bg-white/20 rounded-lg"><i data-lucide="arrow-up-right" class="w-5 h-5"></i></div>
-                    </div>
+                    <div class="flex items-center justify-between"><h3 id="stat-given" class="text-lg font-black text-white">PKR 0</h3><div class="p-2 bg-white/20 rounded-lg"><i data-lucide="arrow-up-right" class="w-5 h-5"></i></div></div>
                 </div>
                 <div class="bg-rose-500 p-8 rounded-xl text-white shadow-lg flex flex-col justify-between">
                     <p class="text-[10px] font-bold opacity-70 uppercase mb-1">Remaining</p>
-                    <div class="flex items-center justify-between">
-                        <h3 id="stat-udhaar" class="text-lg font-black text-white">PKR 0</h3>
-                        <div class="p-2 bg-white/20 rounded-lg"><i data-lucide="clock" class="w-5 h-5"></i></div>
-                    </div>
+                    <div class="flex items-center justify-between"><h3 id="stat-udhaar" class="text-lg font-black text-white">PKR 0</h3><div class="p-2 bg-white/20 rounded-lg"><i data-lucide="clock" class="w-5 h-5"></i></div></div>
                 </div>
                 <div class="bg-emerald-600 p-8 rounded-xl text-white shadow-lg flex flex-col justify-between">
                     <p class="text-[10px] font-bold opacity-70 uppercase mb-1">Collected</p>
-                    <div class="flex items-center justify-between">
-                        <h3 id="stat-recovered" class="text-lg font-black text-white">PKR 0</h3>
-                        <div class="p-2 bg-white/20 rounded-lg"><i data-lucide="check-circle" class="w-5 h-5"></i></div>
-                    </div>
+                    <div class="flex items-center justify-between"><h3 id="stat-recovered" class="text-lg font-black text-white">PKR 0</h3><div class="p-2 bg-white/20 rounded-lg"><i data-lucide="check-circle" class="w-5 h-5"></i></div></div>
                 </div>
                 <div class="bg-amber-500 p-8 rounded-xl text-white shadow-lg flex flex-col justify-between">
                     <p class="text-[10px] font-bold opacity-70 uppercase mb-1">Clients</p>
-                    <div class="flex items-center justify-between">
-                        <h3 id="stat-customers" class="text-lg font-black text-white">0</h3>
-                        <div class="p-2 bg-white/20 rounded-lg"><i data-lucide="users" class="w-5 h-5"></i></div>
-                    </div>
+                    <div class="flex items-center justify-between"><h3 id="stat-customers" class="text-lg font-black text-white">0</h3><div class="p-2 bg-white/20 rounded-lg"><i data-lucide="users" class="w-5 h-5"></i></div></div>
                 </div>
             </div>
 
-            <!-- Stats for Mobile (New 2+1 Design) -->
             <div class="md:hidden space-y-4">
-                <!-- Combined Main Card -->
                 <div class="bg-gradient-to-br from-emerald-800 to-emerald-700 rounded-[1.0rem] p-6 text-white shadow-1xl relative overflow-hidden">
                     <div class="flex relative z-10">
-                        <div class="flex-1 border-r border-white/20 pr-4">
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="p-1.5 bg-white/20 rounded-lg shadow-inner"><i data-lucide="trending-up" class="w-4 h-4 text-indigo-200"></i></div>
-                                <p class="text-[10px] font-bold opacity-70 uppercase">Total Given</p>
-                            </div>
-                            <h3 id="stat-given-m" class="text-lg font-black">PKR 0</h3>
-                        </div>
-                        <div class="flex-1 pl-6">
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="p-1.5 bg-rose-500/30 rounded-lg shadow-inner"><i data-lucide="pie-chart" class="w-4 h-4 text-rose-200"></i></div>
-                                <p class="text-[10px] font-bold opacity-70 uppercase">Remaining</p>
-                            </div>
-                            <h3 id="stat-udhaar-m" class="text-lg font-black text-rose-300">PKR 0</h3>
-                        </div>
+                        <div class="flex-1 border-r border-white/20 pr-4"><div class="flex items-center gap-2 mb-2"><div class="p-1.5 bg-white/20 rounded-lg shadow-inner"><i data-lucide="trending-up" class="w-4 h-4 text-indigo-200"></i></div><p class="text-[10px] font-bold opacity-70 uppercase">Total Given</p></div><h3 id="stat-given-m" class="text-lg font-black">PKR 0</h3></div>
+                        <div class="flex-1 pl-6"><div class="flex items-center gap-2 mb-2"><div class="p-1.5 bg-rose-500/30 rounded-lg shadow-inner"><i data-lucide="pie-chart" class="w-4 h-4 text-rose-200"></i></div><p class="text-[10px] font-bold opacity-70 uppercase">Remaining</p></div><h3 id="stat-udhaar-m" class="text-lg font-black text-rose-300">PKR 0</h3></div>
                     </div>
-                    <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-white/5 rounded-full blur-3xl"></div>
                 </div>
-                
-                <!-- Collected and Clients Row -->
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center text-center">
-                        <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-emerald-100/50">
-                            <i data-lucide="check-circle-2" class="w-6 h-6"></i>
-                        </div>
-                        <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Collected</p>
-                        <h3 id="stat-recovered-m" class="text-sm font-black text-slate-800">PKR 0</h3>
-                    </div>
-                    <div class="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center text-center">
-                        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-amber-100/50">
-                            <i data-lucide="user-check" class="w-6 h-6"></i>
-                        </div>
-                        <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Clients</p>
-                        <h3 id="stat-customers-m" class="text-sm font-black text-slate-800">0</h3>
-                    </div>
+                    <div class="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center text-center"><div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-3"><i data-lucide="check-circle-2" class="w-6 h-6"></i></div><p class="text-[9px] font-black text-slate-400 uppercase mb-1">Collected</p><h3 id="stat-recovered-m" class="text-sm font-black text-slate-800">PKR 0</h3></div>
+                    <div class="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center text-center"><div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-3"><i data-lucide="user-check" class="w-6 h-6"></i></div><p class="text-[9px] font-black text-slate-400 uppercase mb-1">Clients</p><h3 id="stat-customers-m" class="text-sm font-black text-slate-800">0</h3></div>
                 </div>
             </div>
 
@@ -139,24 +128,12 @@
                 <button onclick="openEntryModal('existing')" class="flex-1 bg-slate-900 text-white py-5 rounded-3xl font-black flex items-center justify-center gap-2 shadow-xl"><i data-lucide="plus-circle"></i> Add Record</button>
                 <button onclick="openEntryModal('new')" class="flex-1 bg-white text-slate-900 border border-slate-200 py-5 rounded-3xl font-black flex items-center justify-center gap-2 shadow-sm"><i data-lucide="user-plus"></i> New Customer</button>
             </div>
-            <div class="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
-                <div class="p-6 border-b font-black text-slate-800">Recent Transactions</div>
-                <div id="recent-txns" class="divide-y divide-slate-50"></div>
-            </div>
+            <div class="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden"><div class="p-6 border-b font-black text-slate-800">Recent Transactions</div><div id="recent-txns" class="divide-y divide-slate-50"></div></div>
         </section>
 
-        <section id="customers" class="tab-content space-y-4">
-            <div id="customer-list-ui" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
-        </section>
-
-        <section id="customer-profile" class="tab-content space-y-6">
-            <div id="profile-detail-view"></div>
-        </section>
-
-        <section id="transactions" class="tab-content space-y-4">
-            <div id="full-txn-list" class="space-y-3"></div>
-        </section>
-
+        <section id="customers" class="tab-content space-y-4"><div id="customer-list-ui" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div></section>
+        <section id="customer-profile" class="tab-content space-y-6"><div id="profile-detail-view"></div></section>
+        <section id="transactions" class="tab-content space-y-4"><div id="full-txn-list" class="space-y-3"></div></section>
         <section id="settings" class="tab-content space-y-6">
             <div class="bg-white p-8 rounded-[2rem] border shadow-sm max-w-xl mx-auto">
                 <h3 class="text-xl font-bold mb-6 text-center">Statement Download</h3>
@@ -169,22 +146,18 @@
                             <div><label class="text-[10px] font-bold text-slate-400 uppercase">Start Date</label><input type="date" id="start-date" class="w-full p-2 border rounded-lg"></div>
                             <div><label class="text-[10px] font-bold text-slate-400 uppercase">End Date</label><input type="date" id="end-date" class="w-full p-2 border rounded-lg"></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="downloadCSV()" class="bg-slate-800 text-white py-4 rounded-xl font-black text-sm">Download CSV</button>
-                            <button onclick="generatePDF()" class="bg-emerald-600 text-white py-4 rounded-xl font-black text-sm">Download PDF</button>
-                        </div>
+                        <div class="grid grid-cols-2 gap-3"><button onclick="downloadCSV()" class="bg-slate-800 text-white py-4 rounded-xl font-black text-sm">Download CSV</button><button onclick="generatePDF()" class="bg-emerald-600 text-white py-4 rounded-xl font-black text-sm">Download PDF</button></div>
                     </div>
                 </div>
             </div>
         </section>
     </div>
 
+    <!-- MODALS -->
     <nav class="mobile-nav">
         <button onclick="showTab('dashboard')"><i id="m-icon-dashboard" data-lucide="layout-grid" class="w-6 h-6"></i></button>
         <button onclick="showTab('customers')" class="mr-14"><i id="m-icon-customers" data-lucide="users" class="w-6 h-6"></i></button>
-        <div class="plus-container">
-            <button onclick="openChoiceModal()" class="raised-btn"><i data-lucide="plus" class="w-8 h-8"></i></button>
-        </div>
+        <div class="plus-container"><button onclick="openChoiceModal()" class="raised-btn"><i data-lucide="plus" class="w-8 h-8"></i></button></div>
         <button onclick="showTab('transactions')" class="ml-14"><i id="m-icon-transactions" data-lucide="history" class="w-6 h-6"></i></button>
         <button onclick="showTab('settings')"><i id="m-icon-settings" data-lucide="settings" class="w-6 h-6"></i></button>
     </nav>
@@ -192,14 +165,8 @@
     <div id="edit-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[4000] hidden flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl">
             <h3 class="text-xl font-black mb-6">Edit Customer</h3>
-            <div class="space-y-4">
-                <input type="hidden" id="edit-old-name">
-                <input type="text" id="edit-new-name" placeholder="New Name" class="w-full bg-slate-100 p-4 rounded-xl font-bold border">
-                <input type="text" id="edit-new-father" placeholder="New Father Name" class="w-full bg-slate-100 p-4 rounded-xl font-bold border">
-                <div class="flex gap-2 pt-4">
-                    <button onclick="saveCustomerEdit()" id="editSaveBtn" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-black">Save Changes</button>
-                    <button onclick="closeEditModal()" class="px-6 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">Cancel</button>
-                </div>
+            <div class="space-y-4"><input type="hidden" id="edit-old-name"><input type="text" id="edit-new-name" placeholder="New Name" class="w-full bg-slate-100 p-4 rounded-xl font-bold border"><input type="text" id="edit-new-father" placeholder="New Father Name" class="w-full bg-slate-100 p-4 rounded-xl font-bold border">
+                <div class="flex gap-2 pt-4"><button onclick="saveCustomerEdit()" id="editSaveBtn" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-black">Save Changes</button><button onclick="closeEditModal()" class="px-6 bg-slate-100 text-slate-500 py-4 rounded-xl font-bold">Cancel</button></div>
             </div>
         </div>
     </div>
@@ -237,26 +204,51 @@
             <div class="flex justify-between items-center mb-6"><h3 id="modal-title-text" class="text-xl font-bold">New Entry</h3><button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-full"><i data-lucide="x"></i></button></div>
             <form id="txnForm" class="space-y-4">
                 <div id="name-input-container"><select id="m-name-select" onchange="calculateRealTime()" class="w-full bg-slate-100 p-4 rounded-xl font-bold"></select></div>
-                <div id="new-name-container" class="hidden space-y-4">
-                    <input type="text" id="m-name-text" placeholder="Full Name" class="w-full bg-slate-100 p-4 rounded-xl border">
-                    <input type="text" id="m-father-name" placeholder="Father Name" class="w-full bg-slate-100 p-4 rounded-xl border">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <button type="button" onclick="setType('Udhaar')" id="btn-udhaar" class="p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold">Udhaar (+)</button>
-                    <button type="button" onclick="setType('Paid')" id="btn-paid" class="p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400">Paid (-)</button>
-                </div>
+                <div id="new-name-container" class="hidden space-y-4"><input type="text" id="m-name-text" placeholder="Full Name" class="w-full bg-slate-100 p-4 rounded-xl border"><input type="text" id="m-father-name" placeholder="Father Name" class="w-full bg-slate-100 p-4 rounded-xl border"></div>
+                <div class="grid grid-cols-2 gap-4"><button type="button" onclick="setType('Udhaar')" id="btn-udhaar" class="p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold">Udhaar (+)</button><button type="button" onclick="setType('Paid')" id="btn-paid" class="p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400">Paid (-)</button></div>
                 <input type="hidden" id="m-type" value="Udhaar">
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="number" id="m-amount" onkeyup="calculateRealTime()" required placeholder="0" class="w-full bg-slate-100 p-4 rounded-xl font-black text-xl">
-                    <div class="bg-slate-900 rounded-xl p-4 text-center text-white"><p class="text-[8px] text-emerald-400 uppercase">Estimated Bal</p><p id="calc-preview" class="text-xs font-black">0</p></div>
-                </div>
-                <input type="text" id="m-desc" placeholder="Details (Note)" class="w-full bg-slate-100 p-4 rounded-xl">
-                <button type="submit" id="saveBtn" class="w-full bg-[#064e3b] text-white py-5 rounded-2xl font-black shadow-lg">Confirm & Save</button>
+                <div class="grid grid-cols-2 gap-4"><input type="number" id="m-amount" onkeyup="calculateRealTime()" required placeholder="0" class="w-full bg-slate-100 p-4 rounded-xl font-black text-xl"><div class="bg-slate-900 rounded-xl p-4 text-center text-white"><p class="text-[8px] text-emerald-400 uppercase">Estimated Bal</p><p id="calc-preview" class="text-xs font-black">0</p></div></div>
+                <input type="text" id="m-desc" placeholder="Details (Note)" class="w-full bg-slate-100 p-4 rounded-xl"><button type="submit" id="saveBtn" class="w-full bg-[#064e3b] text-white py-5 rounded-2xl font-black shadow-lg">Confirm & Save</button>
             </form>
         </div>
     </div>
 
     <script>
+        // --- SECURE LOCK LOGIC (SHA-256 Hashed PIN "1234") ---
+        const PIN_HASH = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; 
+
+        function moveTab(current, nextID) {
+            if (current.value.length >= 1) {
+                document.getElementById(nextID).focus();
+            }
+        }
+
+        function checkAndUnlock() {
+            const p1 = document.getElementById('d1').value;
+            const p2 = document.getElementById('d2').value;
+            const p3 = document.getElementById('d3').value;
+            const p4 = document.getElementById('d4').value;
+            const entered = p1 + p2 + p3 + p4;
+            
+            // Generate hash of entered PIN
+            const enteredHash = CryptoJS.SHA256(entered).toString();
+
+            if (enteredHash === PIN_HASH) {
+                document.getElementById('app-lock').style.display = 'none';
+                document.body.classList.remove('overflow-hidden');
+                refreshData(); 
+            } else {
+                const card = document.getElementById('pin-card');
+                card.classList.add('shake');
+                document.getElementById('lock-error').classList.remove('hidden');
+                setTimeout(() => {
+                    card.classList.remove('shake');
+                    ['d1','d2','d3','d4'].forEach(id => document.getElementById(id).value = '');
+                    document.getElementById('d1').focus();
+                }, 400);
+            }
+        }
+
         // --- FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyANM3X8DyEji1hUqOOHV7SIBaEXxnvgW7k",
@@ -302,52 +294,23 @@
         }
 
         function renderUI(data) {
-            const formattedGiven = `PKR ${data.summary.totalGivenEver.toLocaleString()}`;
-            const formattedUdhaar = `PKR ${data.summary.marketBalance.toLocaleString()}`;
-            const formattedRecovered = `PKR ${data.summary.totalRecovered.toLocaleString()}`;
-            const formattedCustomers = data.summary.totalCustomers;
-
-            // Desktop Stats
-            document.getElementById('stat-given').innerText = formattedGiven;
-            document.getElementById('stat-udhaar').innerText = formattedUdhaar;
-            document.getElementById('stat-recovered').innerText = formattedRecovered;
-            document.getElementById('stat-customers').innerText = formattedCustomers;
-
-            // Mobile Stats
-            document.getElementById('stat-given-m').innerText = formattedGiven;
-            document.getElementById('stat-udhaar-m').innerText = formattedUdhaar;
-            document.getElementById('stat-recovered-m').innerText = formattedRecovered;
-            document.getElementById('stat-customers-m').innerText = formattedCustomers;
+            const fG = `PKR ${data.summary.totalGivenEver.toLocaleString()}`;
+            const fU = `PKR ${data.summary.marketBalance.toLocaleString()}`;
+            const fR = `PKR ${data.summary.totalRecovered.toLocaleString()}`;
+            const fC = data.summary.totalCustomers;
+            ['stat-given', 'stat-given-m'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerText = fG; });
+            ['stat-udhaar', 'stat-udhaar-m'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerText = fU; });
+            ['stat-recovered', 'stat-recovered-m'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerText = fR; });
+            ['stat-customers', 'stat-customers-m'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerText = fC; });
             
-            document.getElementById('recent-txns').innerHTML = data.recentTransactions.map(t => `
-                <div onclick="openReceipt('${t.id}')" class="p-5 flex justify-between items-center text-sm font-bold cursor-pointer hover:bg-slate-50">
-                    <div class="flex items-center gap-3">
-                        <div class="p-2 rounded-full ${t.type==='Udhaar'?'bg-rose-50 text-rose-500':'bg-emerald-50 text-emerald-500'}"><i data-lucide="${t.type==='Udhaar'?'arrow-up-right':'arrow-down-left'}" class="w-4 h-4"></i></div>
-                        <div><p>${t.name}</p><p class="text-[9px] text-slate-400 uppercase">${t.date}</p></div>
-                    </div>
-                    <p class="${t.type === 'Udhaar' ? 'text-rose-500' : 'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p>
-                </div>`).join('');
-
-            document.getElementById('customer-list-ui').innerHTML = data.customers.map(c => `
-                <div class="bg-white p-6 rounded-[2rem] shadow-sm flex justify-between items-center border-l-8 ${c.balance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}">
-                    <div onclick="viewCustomer('${c.name}')" class="flex-1 cursor-pointer">
-                        <h4 class="font-black text-slate-800 text-lg">${c.name} <span class="text-xs font-normal text-slate-400">${c.fatherName ? '('+c.fatherName+')' : ''}</span></h4>
-                        <p class="text-xl font-black ${c.balance > 0 ? 'text-rose-500' : 'text-emerald-600'}">PKR ${c.balance.toLocaleString()}</p>
-                    </div>
-                    <button onclick="confirmDelete('${c.name}')" class="p-3 text-rose-500 hover:bg-rose-50 rounded-2xl"><i data-lucide="trash-2"></i></button>
-                </div>`).join('');
-
-            document.getElementById('full-txn-list').innerHTML = data.allTransactions.map(t => `
-                <div onclick="openReceipt('${t.id}')" class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm font-bold text-sm cursor-pointer border border-transparent hover:border-slate-200">
-                    <div><p>${t.name}</p><p class="text-[9px] text-slate-400 uppercase">${t.date} • ${t.type}</p></div>
-                    <p class="${t.type === 'Udhaar' ? 'text-rose-500' : 'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p>
-                </div>`).join('');
-
+            document.getElementById('recent-txns').innerHTML = data.recentTransactions.map(t => `<div onclick="openReceipt('${t.id}')" class="p-5 flex justify-between items-center text-sm font-bold cursor-pointer hover:bg-slate-50"><div class="flex items-center gap-3"><div class="p-2 rounded-full ${t.type==='Udhaar'?'bg-rose-50 text-rose-500':'bg-emerald-50 text-emerald-500'}"><i data-lucide="${t.type==='Udhaar'?'arrow-up-right':'arrow-down-left'}" class="w-4 h-4"></i></div><div><p>${t.name}</p><p class="text-[9px] text-slate-400 uppercase">${t.date}</p></div></div><p class="${t.type === 'Udhaar' ? 'text-rose-500' : 'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p></div>`).join('');
+            document.getElementById('customer-list-ui').innerHTML = data.customers.map(c => `<div class="bg-white p-6 rounded-[2rem] shadow-sm flex justify-between items-center border-l-8 ${c.balance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'}"><div onclick="viewCustomer('${c.name}')" class="flex-1 cursor-pointer"><h4 class="font-black text-slate-800 text-lg">${c.name} <span class="text-xs font-normal text-slate-400">${c.fatherName ? '('+c.fatherName+')' : ''}</span></h4><p class="text-xl font-black ${c.balance > 0 ? 'text-rose-500' : 'text-emerald-600'}">PKR ${c.balance.toLocaleString()}</p></div><button onclick="confirmDelete('${c.name}')" class="p-3 text-rose-500 hover:bg-rose-50 rounded-2xl"><i data-lucide="trash-2"></i></button></div>`).join('');
+            document.getElementById('full-txn-list').innerHTML = data.allTransactions.map(t => `<div onclick="openReceipt('${t.id}')" class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm font-bold text-sm cursor-pointer border border-transparent hover:border-slate-200"><div><p>${t.name}</p><p class="text-[9px] text-slate-400 uppercase">${t.date} • ${t.type}</p></div><p class="${t.type === 'Udhaar' ? 'text-rose-500' : 'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p></div>`).join('');
             document.getElementById('m-name-select').innerHTML = data.customers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             lucide.createIcons();
         }
 
-        // --- ALL OTHER FUNCTIONS ---
+        // --- PURAY FUNCTIONS (Open Receipt, Calculate, Save, Tab, etc.) ---
         function openReceipt(txnId) {
             const txn = appData.allTransactions.find(t => t.id == txnId);
             if(!txn) return;
@@ -442,25 +405,7 @@
         function viewCustomer(name) {
             const c = appData.customers.find(x => x.name === name); if(!c) return;
             showTab('customer-profile');
-            document.getElementById('profile-detail-view').innerHTML = `
-                <div class="bg-[#064e3b] p-8 rounded-[2.5rem] text-white shadow-xl mb-6 relative">
-                    <button onclick="openEditModal('${c.name}', '${c.fatherName}')" class="absolute top-8 right-8 p-3 bg-white/10 rounded-full"><i data-lucide="edit-3" class="w-5 h-5"></i></button>
-                    <h2 class="text-3xl font-black mb-1">${c.name}</h2><p class="text-white/60 mb-8 font-bold">${c.fatherName ? 'S/O ' + c.fatherName : ''}</p>
-                    <div class="grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
-                        <div class="bg-white/10 p-3 rounded-2xl">Taken<br>${c.totalUdhaar.toLocaleString()}</div>
-                        <div class="bg-white/10 p-3 rounded-2xl">Paid<br>${c.totalPaid.toLocaleString()}</div>
-                        <div class="bg-white/20 p-3 rounded-2xl border border-white/10 text-emerald-300">Bal<br>${c.balance.toLocaleString()}</div>
-                    </div>
-                    <button onclick="openEntryModal('fixed', '${c.name}')" class="w-full bg-white text-[#064e3b] py-4 rounded-2xl font-black mt-8 shadow-lg uppercase">Add New Record</button>
-                </div>
-                <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden">
-                    <div class="p-5 font-black border-b text-slate-700">History Log</div>
-                    <div class="divide-y">${c.history.slice().reverse().map(h => `
-                        <div onclick="openReceipt('${h.id}')" class="p-4 flex justify-between items-center text-sm font-bold cursor-pointer">
-                            <div><p class="text-xs uppercase">${h.date}</p><p class="text-[10px] text-slate-400 font-normal">${h.description || ''}</p></div>
-                            <p class="${h.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">${h.type==='Udhaar'?'+':'-'} PKR ${h.amount.toLocaleString()}</p>
-                        </div>`).join('')}</div>
-                </div>`;
+            document.getElementById('profile-detail-view').innerHTML = `<div class="bg-[#064e3b] p-8 rounded-[2.5rem] text-white shadow-xl mb-6 relative"><button onclick="openEditModal('${c.name}', '${c.fatherName}')" class="absolute top-8 right-8 p-3 bg-white/10 rounded-full"><i data-lucide="edit-3" class="w-5 h-5"></i></button><h2 class="text-3xl font-black mb-1">${c.name}</h2><p class="text-white/60 mb-8 font-bold">${c.fatherName ? 'S/O ' + c.fatherName : ''}</p><div class="grid grid-cols-3 gap-2 text-center text-[10px] font-bold"><div class="bg-white/10 p-3 rounded-2xl">Taken<br>${c.totalUdhaar.toLocaleString()}</div><div class="bg-white/10 p-3 rounded-2xl">Paid<br>${c.totalPaid.toLocaleString()}</div><div class="bg-white/20 p-3 rounded-2xl border border-white/10 text-emerald-300">Bal<br>${c.balance.toLocaleString()}</div></div><button onclick="openEntryModal('fixed', '${c.name}')" class="w-full bg-white text-[#064e3b] py-4 rounded-2xl font-black mt-8 shadow-lg uppercase">Add New Record</button></div><div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden"><div class="p-5 font-black border-b text-slate-700">History Log</div><div class="divide-y">${c.history.slice().reverse().map(h => `<div onclick="openReceipt('${h.id}')" class="p-4 flex justify-between items-center text-sm font-bold cursor-pointer"><div><p class="text-xs uppercase">${h.date}</p><p class="text-[10px] text-slate-400 font-normal">${h.description || ''}</p></div><p class="${h.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">${h.type==='Udhaar'?'+':'-'} PKR ${h.amount.toLocaleString()}</p></div>`).join('')}</div></div>`;
             lucide.createIcons();
         }
         function openEditModal(n, f) { document.getElementById('edit-old-name').value = n; document.getElementById('edit-new-name').value = n; document.getElementById('edit-new-father').value = f || ""; document.getElementById('edit-modal').classList.remove('hidden'); }
@@ -470,10 +415,7 @@
         function filterSearch() {
             const q = document.getElementById('search-input').value.toLowerCase();
             const res = document.getElementById('search-results'); if(!q) return res.innerHTML = '';
-            res.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q) || (c.fatherName && c.fatherName.toLowerCase().includes(q))).map(c => `
-                <div onclick="toggleSearch(); viewCustomer('${c.name}')" class="p-5 bg-slate-50 rounded-2xl font-bold flex justify-between items-center border cursor-pointer">
-                    <div><p>${c.name}</p><p class="text-[10px] text-slate-400">Balance: PKR ${c.balance.toLocaleString()}</p></div><i data-lucide="chevron-right"></i>
-                </div>`).join('');
+            res.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q) || (c.fatherName && c.fatherName.toLowerCase().includes(q))).map(c => `<div onclick="toggleSearch(); viewCustomer('${c.name}')" class="p-5 bg-slate-50 rounded-2xl font-bold flex justify-between items-center border cursor-pointer"><div><p>${c.name}</p><p class="text-[10px] text-slate-400">Balance: PKR ${c.balance.toLocaleString()}</p></div><i data-lucide="chevron-right"></i></div>`).join('');
             lucide.createIcons();
         }
         function confirmDelete(n) { if(confirm("Delete " + n + "?")) { const updates = {}; appData.allTransactions.filter(t=>t.name===n).forEach(t=> updates[`/transactions/${t.id}`] = null); db.ref().update(updates); } }
@@ -482,7 +424,11 @@
         function handleChoice(m) { closeChoiceModal(); openEntryModal(m); }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
         window.onclick = (e) => { if(!e.target.closest('#statement-search') && !e.target.closest('#statement-dropdown')) document.getElementById('statement-dropdown').classList.add('hidden'); };
-        window.onload = () => { lucide.createIcons(); refreshData(); };
+        
+        window.onload = () => { 
+            lucide.createIcons();
+            document.getElementById('d1').focus(); 
+        };
     </script>
 </body>
 </html>
