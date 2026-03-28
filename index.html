@@ -486,7 +486,9 @@
                     <p class="text-slate-800">${t.name}</p>
                     <p class="text-[9px] text-slate-400 font-bold uppercase">S/O: ${t.fatherName || 'N/A'}</p>
                 </div>
-                <span class="text-[8px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 uppercase tracking-tighter">${t.type}</span>
+                <span class="text-[8px] px-2 py-0.5 rounded-full uppercase tracking-tighter ${t.type === 'Udhaar' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}">
+    ${t.type}
+</span>
             </div>
             <p class="text-[9px] text-slate-400 uppercase mt-1">${t.date}</p>
             ${t.description ? `<p class="text-[10px] text-slate-500 font-medium italic mt-1 border-l-2 border-emerald-100 pl-2">Note: ${t.description}</p>` : ''}
