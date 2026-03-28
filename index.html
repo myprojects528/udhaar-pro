@@ -173,6 +173,11 @@
                         <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center"><i data-lucide="file-text"></i></div>
                         <div class="text-left"><h4 class="font-black text-slate-800">Statements</h4><p class="text-[10px] text-slate-400 font-bold uppercase">Download CSV/PDF</p></div>
                     </button>
+                    <!-- Overall Report Button -->
+<button onclick="toggleSettings('global')" class="bg-white p-6 rounded-[2rem] border flex items-center gap-4 icon-3d">
+    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center"><i data-lucide="bar-chart-3"></i></div>
+    <div class="text-left"><h4 class="font-black text-slate-800">Overall Report</h4><p class="text-[10px] text-slate-400 font-bold uppercase">All Users History</p></div>
+</button>
                     <button onclick="toggleSettings('security')" class="bg-white p-6 rounded-[2rem] border flex items-center gap-4 icon-3d">
                         <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center"><i data-lucide="lock"></i></div>
                         <div class="text-left"><h4 class="font-black text-slate-800">Security</h4><p class="text-[10px] text-slate-400 font-bold uppercase">Reset PIN</p></div>
@@ -204,6 +209,29 @@
                     <button onclick="resetAppPin()" class="w-full bg-rose-600 text-white py-4 rounded-xl font-black text-xs uppercase shadow-lg">Change PIN</button>
                     <p id="pin-reset-msg" class="text-[10px] text-center font-bold hidden uppercase"></p>
                 </div>
+
+                <!-- GLOBAL STATEMENT SECTION -->
+<div id="set-global" class="hidden bg-white p-8 rounded-[2rem] border shadow-lg space-y-4">
+    <button onclick="toggleSettings('menu')" class="text-xs font-black text-emerald-600 uppercase flex items-center gap-1"><i data-lucide="arrow-left" class="w-3 h-3"></i> Back</button>
+    <h3 class="font-black text-slate-800">Download Overall Report</h3>
+    <p class="text-[10px] text-slate-400 font-bold uppercase">Select date range for all transactions</p>
+    <div class="space-y-4 p-5 bg-slate-50 rounded-2xl border">
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-[9px] font-bold text-slate-500 uppercase ml-1">From</label>
+                <input type="date" id="global-start-date" class="w-full p-2 border rounded-lg text-sm font-bold">
+            </div>
+            <div>
+                <label class="text-[9px] font-bold text-slate-500 uppercase ml-1">To</label>
+                <input type="date" id="global-end-date" class="w-full p-2 border rounded-lg text-sm font-bold">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 pt-2">
+            <button onclick="downloadGlobalCSV()" class="bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase">CSV Report</button>
+            <button onclick="generateGlobalPDF()" class="bg-emerald-600 text-white py-4 rounded-xl font-black text-xs uppercase">PDF Report</button>
+        </div>
+    </div>
+</div>
 
                 <!-- UPDATED DEVELOPER SECTION UI -->
 <div id="set-dev" class="hidden bg-gradient-to-b from-slate-900 to-black p-10 rounded-[1.0rem] text-white text-center shadow-2xl relative overflow-hidden border border-white/5">
@@ -541,13 +569,19 @@
         }
 
         function toggleSettings(v) {
-            ['settings-menu','set-statement','set-security','set-dev'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            if(v==='menu') document.getElementById('settings-menu').classList.remove('hidden');
-            else if(v==='statement') document.getElementById('set-statement').classList.remove('hidden');
-            else if(v==='security') document.getElementById('set-security').classList.remove('hidden');
-            else if(v==='dev') document.getElementById('set-dev').classList.remove('hidden');
-            lucide.createIcons();
-        }
+    // Sab ko hide karo pehle
+    ['settings-menu','set-statement','set-security','set-dev', 'set-global'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.add('hidden');
+    });
+    // Jo click kiya usay show karo
+    if(v==='menu') document.getElementById('settings-menu').classList.remove('hidden');
+    else if(v==='statement') document.getElementById('set-statement').classList.remove('hidden');
+    else if(v==='security') document.getElementById('set-security').classList.remove('hidden');
+    else if(v==='dev') document.getElementById('set-dev').classList.remove('hidden');
+    else if(v==='global') document.getElementById('set-global').classList.remove('hidden'); 
+    lucide.createIcons();
+}
 
         function viewCustomer(name) {
             const c = appData.customers.find(x => x.name === name); if(!c) return;
@@ -592,6 +626,73 @@
     document.getElementById('r-balance').innerText = "PKR " + (c ? c.balance.toLocaleString() : '0');
     document.getElementById('receipt-modal').classList.remove('hidden');
 }
+
+
+
+// --- GLOBAL REPORT FUNCTIONS (Overall Business History) ---
+
+function getFilteredGlobalData() {
+    const start = document.getElementById('global-start-date').value;
+    const end = document.getElementById('global-end-date').value;
+    
+    if(!start || !end) { alert("Please select both dates"); return null; }
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    endDate.setHours(23, 59, 59); // Poora din cover karne ke liye
+
+    // Filter all transactions based on selected date
+    return appData.allTransactions.filter(t => {
+        const [d, m, y] = t.date.split('/');
+        const txnDate = new Date(`${y}-${m}-${d}`);
+        return txnDate >= startDate && txnDate <= endDate;
+    }).sort((a, b) => a.timestamp - b.timestamp); // Purani pehle, nai baad mein
+}
+
+function generateGlobalPDF() {
+    const data = getFilteredGlobalData();
+    if(!data || data.length === 0) { alert("Is date range mein koi record nahi mila"); return; }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text("UdhaarPro - Overall Business Report", 15, 20);
+    
+    doc.setFontSize(10);
+    doc.text(`Report Period: ${document.getElementById('global-start-date').value} to ${document.getElementById('global-end-date').value}`, 15, 28);
+    doc.text(`Total Transactions: ${data.length}`, 15, 33);
+
+    const tableBody = data.map(t => [t.date, t.name, t.type, t.amount.toLocaleString()]);
+    
+    doc.autoTable({
+        startY: 40,
+        head: [['Date', 'Customer Name', 'Type', 'Amount (PKR)']],
+        body: tableBody,
+        theme: 'striped',
+        headStyles: { fillColor: [6, 78, 59] } // Dark Green / Emerald color
+    });
+
+    doc.save(`Business_Report_${Date.now()}.pdf`);
+}
+
+function downloadGlobalCSV() {
+    const data = getFilteredGlobalData();
+    if(!data || data.length === 0) { alert("No records found"); return; }
+
+    let csv = "Date,Customer Name,Type,Amount,Description\n";
+    data.forEach(t => {
+        csv += `${t.date},"${t.name}",${t.type},${t.amount},"${t.description || ''}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Business_History_${Date.now()}.csv`;
+    a.click();
+}
+
+        
 
         function setType(t) { document.getElementById('m-type').value = t; document.getElementById('btn-udhaar').className = t==='Udhaar'?'p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold':'p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400'; document.getElementById('btn-paid').className = t==='Paid'?'p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold':'p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400'; calculateRealTime(); }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
