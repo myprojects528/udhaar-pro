@@ -387,7 +387,7 @@
                 db.ref('settings/pinHash').set(defaultHash); 
                 currentPinHash = defaultHash;
             } else { currentPinHash = hash; }
-            document.getElementById('lock-status').innerText = "Security Sync OK";
+            document.getElementById('lock-status').innerText = "System Ready";
             document.getElementById('pin-inputs').classList.remove('hidden');
             document.getElementById('d1').focus();
             lucide.createIcons();
@@ -423,17 +423,17 @@
             db.ref('settings/pinHash').set(newHash).then(() => {
                 currentPinHash = newHash; 
                 msg.innerText = "PIN Updated!"; 
-                msg.className = "text-emerald-500 font-bold block mt-2 uppercase"; 
+                msg.className = "text-emerald-500 font-bold block mt-2 uppercase text-[15px]"; 
                 msg.classList.remove('hidden');
             });
         } else { 
             msg.innerText = "Wrong Current PIN!"; 
-            msg.className = "text-rose-500 font-bold block mt-2 uppercase"; 
+            msg.className = "text-rose-500 font-bold block mt-2 uppercase text-[15px]"; 
             msg.classList.remove('hidden'); 
         }
     }
 
-    // --- CORE LOGIC ---
+    // --- CORE DATA LOGIC ---
     function refreshData() {
         db.ref('transactions').on('value', (snapshot) => {
             const raw = snapshot.val() || {};
@@ -441,7 +441,7 @@
             
             Object.keys(raw).forEach(key => {
                 let t = raw[key];
-                let uid = t.customerId || t.name; // ID grouping
+                let uid = t.customerId || t.name; // Unique ID support
 
                 if (!customers[uid]) {
                     customers[uid] = { 
@@ -460,6 +460,7 @@
                     customers[uid].balance -= val; 
                     totalRecovered += val; 
                 }
+                
                 const txnObj = { ...t, id: key, customerId: uid };
                 allTxns.push(txnObj); 
                 customers[uid].history.push(txnObj);
@@ -482,7 +483,7 @@
     }
 
     function renderUI(data) {
-        // Summary Stats
+        // Stats
         const fG = `PKR ${data.summary.totalGivenEver.toLocaleString()}`;
         const fU = `PKR ${data.summary.marketBalance.toLocaleString()}`;
         const fR = `PKR ${data.summary.totalRecovered.toLocaleString()}`;
@@ -494,7 +495,7 @@
         // Recent Log
         document.getElementById('recent-txns').innerHTML = data.recentTransactions.map(t => `
             <div onclick="openReceipt('${t.id}')" class="p-5 flex justify-between items-center text-sm font-bold cursor-pointer hover:bg-slate-50">
-                <div><p>${t.name}</p><p class="text-[8px] text-slate-400 font-bold uppercase">S/O: ${t.fatherName || '---'}</p><p class="text-[9px] text-slate-400 uppercase font-normal mt-1">${t.date}</p></div>
+                <div><p>${t.name}</p><p class="text-[8px] text-slate-400 uppercase">S/O: ${t.fatherName || '---'}</p><p class="text-[9px] text-slate-400 mt-1">${t.date}</p></div>
                 <p class="${t.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p>
             </div>`).join('');
 
@@ -503,20 +504,33 @@
             <div class="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 ${c.balance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'} flex justify-between items-center">
                 <div onclick="viewCustomer('${c.id}')" class="flex-1 cursor-pointer">
                     <h4 class="font-black text-slate-800 text-lg leading-tight">${c.name}</h4>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tight mb-2">S/O: ${c.fatherName || '---'}</p>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-tight mb-2">S/O: ${c.fatherName || '---'}</p>
                     <p class="text-xl font-black ${c.balance > 0 ? 'text-rose-500' : 'text-emerald-600'}">PKR ${c.balance.toLocaleString()}</p>
                 </div>
                 <button onclick="confirmDelete('${c.id}')" class="p-3 text-rose-500"><i data-lucide="trash-2"></i></button>
             </div>`).join('');
         
-        // Dropdown for adding records
+        // Transactions Tab (Records)
+        document.getElementById('full-txn-list').innerHTML = data.allTransactions.map(t => `
+            <div onclick="openReceipt('${t.id}')" class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm font-bold text-sm cursor-pointer border hover:border-slate-200">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                        <div><p class="text-slate-800">${t.name}</p><p class="text-[9px] text-slate-400 uppercase">S/O: ${t.fatherName || 'N/A'}</p></div>
+                        <span class="text-[8px] px-2 py-0.5 rounded-full uppercase ${t.type === 'Udhaar' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}">${t.type}</span>
+                    </div>
+                    <p class="text-[9px] text-slate-400 uppercase mt-1">${t.date}</p>
+                    ${t.description ? `<p class="text-[10px] text-slate-500 italic mt-1 border-l-2 border-emerald-100 pl-2">Note: ${t.description}</p>` : ''}
+                </div>
+                <p class="${t.type==='Udhaar'?'text-rose-500':'text-emerald-600'} shrink-0 ml-4">PKR ${Number(t.amount).toLocaleString()}</p>
+            </div>`).join('');
+
         document.getElementById('m-name-select').innerHTML = data.customers.map(c => 
             `<option value="${c.id}">${c.name} (S/O ${c.fatherName || '---'})</option>`
         ).join('');
         lucide.createIcons();
     }
 
-    // --- ACTIONS ---
+    // --- FORM & CALCULATION ---
     function calculateRealTime() {
         let bal = 0; 
         let id = (currentMode === 'fixed') ? window.tempFixedId : (currentMode === 'existing' ? document.getElementById('m-name-select').value : null);
@@ -545,8 +559,7 @@
         } else {
             custId = (currentMode === 'fixed') ? window.tempFixedId : document.getElementById('m-name-select').value;
             let c = appData.customers.find(x => x.id === custId);
-            finalName = c.name;
-            finalFather = c.fatherName;
+            finalName = c.name; finalFather = c.fatherName;
         }
         const data = { 
             customerId: custId, name: finalName, fatherName: finalFather, 
@@ -556,6 +569,65 @@
         db.ref('transactions').push(data).then(() => { closeModal(); e.target.reset(); });
     };
 
+    // --- INDIVIDUAL STATEMENTS ---
+    function filterStatementList() {
+        const q = document.getElementById('statement-search').value.toLowerCase();
+        const drp = document.getElementById('statement-dropdown'); drp.classList.remove('hidden');
+        drp.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q)).map(c => `<div onclick="selectStatementCust('${c.id}', '${c.name}')" class="p-4 hover:bg-emerald-50 border-b cursor-pointer font-bold text-sm">${c.name}</div>`).join('');
+    }
+    function selectStatementCust(id, name) { 
+        selectedStatementCustId = id; document.getElementById('selected-cust-name').innerText = "Selected: " + name; 
+        document.getElementById('date-range-box').classList.remove('hidden'); document.getElementById('statement-dropdown').classList.add('hidden'); 
+    }
+    function generatePDF() {
+        const cust = appData.customers.find(c => c.id === selectedStatementCustId);
+        const { jsPDF } = window.jspdf; const doc = new jsPDF();
+        doc.setFontSize(20); doc.text("UdhaarPro Customer Report", 15, 20);
+        doc.setFontSize(10); doc.text(`Customer: ${cust.name} | S/O: ${cust.fatherName || '---'} | Bal: ${cust.balance}`, 15, 30);
+        const body = cust.history.map(t => [t.date, t.type, t.amount.toLocaleString(), t.description || '-']);
+        doc.autoTable({ startY: 40, head: [['Date', 'Type', 'Amount', 'Note']], body: body });
+        doc.save(`${cust.name}_Statement.pdf`);
+    }
+    function downloadCSV() {
+        const cust = appData.customers.find(c => c.id === selectedStatementCustId);
+        let csv = "Date,Type,Amount,Note\n" + cust.history.map(t => `${t.date},${t.type},${t.amount},${t.description}`).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${cust.name}.csv`; a.click();
+    }
+
+    // --- GLOBAL REPORTS ---
+    function getAggregatedGlobalData() {
+        const start = document.getElementById('global-start-date').value;
+        const end = document.getElementById('global-end-date').value;
+        if(!start || !end) { alert("Please select dates"); return null; }
+        const sD = new Date(start); const eD = new Date(end); eD.setHours(23,59,59);
+        const summary = {};
+        appData.allTransactions.forEach(t => {
+            const [d, m, y] = t.date.split('/'); const tD = new Date(`${y}-${m}-${d}`);
+            if (tD >= sD && tD <= eD) {
+                const uid = t.customerId || t.name;
+                if (!summary[uid]) summary[uid] = { name: t.name, father: t.fatherName, u: 0, p: 0 };
+                if (t.type === 'Udhaar') summary[uid].u += Number(t.amount); else summary[uid].p += Number(t.amount);
+            }
+        });
+        return Object.values(summary);
+    }
+    function generateGlobalPDF() {
+        const data = getAggregatedGlobalData(); if(!data) return;
+        const { jsPDF } = window.jspdf; const doc = new jsPDF();
+        doc.text("UdhaarPro Overall Report", 15, 20);
+        const body = data.map((c, i) => [i+1, c.name, c.father, c.u.toLocaleString(), c.p.toLocaleString(), (c.u-c.p).toLocaleString()]);
+        doc.autoTable({ startY: 30, head: [['#','Name','Father','Udhaar','Paid','Balance']], body: body });
+        doc.save(`Global_Report_${Date.now()}.pdf`);
+    }
+    function downloadGlobalCSV() {
+        const data = getAggregatedGlobalData(); if(!data) return;
+        let csv = "Name,Father,Udhaar,Paid,Balance\n" + data.map(c => `${c.name},${c.father},${c.u},${c.p},${c.u-c.p}`).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Global_Summary.csv`; a.click();
+    }
+
+    // --- VIEW & DELETE ---
     function viewCustomer(id) {
         const c = appData.customers.find(x => x.id === id); if(!c) return;
         window.tempFixedId = id; showTab('customer-profile');
@@ -565,39 +637,26 @@
                 <div class="grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
                     <div class="bg-white/10 p-3 rounded-2xl">Taken<br>${c.totalUdhaar.toLocaleString()}</div>
                     <div class="bg-white/10 p-3 rounded-2xl">Paid<br>${c.totalPaid.toLocaleString()}</div>
-                    <div class="bg-white/20 p-3 rounded-2xl">Bal<br>${c.balance.toLocaleString()}</div>
+                    <div class="bg-white/20 p-3 rounded-2xl border border-white/10">Bal<br>${c.balance.toLocaleString()}</div>
                 </div>
-                <button onclick="openEntryModal('fixed', '${c.id}')" class="w-full bg-white text-[#064e3b] py-4 rounded-2xl font-black mt-8 shadow-lg uppercase text-xs">Add Record</button>
+                <button onclick="openEntryModal('fixed', '${c.id}')" class="w-full bg-white text-[#064e3b] py-4 rounded-2xl font-black mt-8 uppercase text-xs">Add Record</button>
             </div>
             <div class="bg-white rounded-[2rem] shadow-sm border mt-6 overflow-hidden">
                 <div class="p-5 font-black border-b text-slate-700">History Log</div>
-                <div class="divide-y">${c.history.slice().reverse().map(h => `<div onclick="openReceipt('${h.id}')" class="p-4 flex justify-between items-center text-sm font-bold cursor-pointer"><div><p class="text-[10px] uppercase">${h.date}</p></div><p class="${h.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">PKR ${h.amount.toLocaleString()}</p></div>`).join('')}</div>
+                <div class="divide-y">${c.history.slice().reverse().map(h => `<div onclick="openReceipt('${h.id}')" class="p-4 flex justify-between items-center text-sm font-bold cursor-pointer"><div><p class="text-[10px] uppercase">${h.date}</p><p class="text-[10px] text-slate-400">${h.description || ''}</p></div><p class="${h.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">PKR ${h.amount.toLocaleString()}</p></div>`).join('')}</div>
             </div>`;
         lucide.createIcons();
     }
 
     function confirmDelete(id) {
-        if(confirm("Is customer ka mukammal record delete kar dein?")) {
+        if(confirm("Delete this customer's entire history?")) {
             const updates = {};
-            appData.allTransactions.filter(t => (t.customerId === id || t.name === id)).forEach(t => {
-                updates[`/transactions/${t.id}`] = null;
-            });
+            appData.allTransactions.filter(t => (t.customerId === id || t.name === id)).forEach(t => updates[`/transactions/${t.id}`] = null);
             db.ref().update(updates);
         }
     }
 
-    function filterSearch() {
-        const q = document.getElementById('search-input').value.toLowerCase();
-        const res = document.getElementById('search-results'); if(!q) return res.innerHTML = '';
-        res.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q) || (c.fatherName && c.fatherName.toLowerCase().includes(q))).map(c => `
-            <div onclick="toggleSearch(); viewCustomer('${c.id}')" class="p-5 bg-slate-50 rounded-2xl font-bold flex justify-between items-center border cursor-pointer">
-                <div><p>${c.name}</p><p class="text-[10px] text-slate-400">Bal: PKR ${c.balance.toLocaleString()}</p></div>
-                <i data-lucide="chevron-right"></i>
-            </div>`).join('');
-        lucide.createIcons();
-    }
-
-    // --- OTHER UI UTILS ---
+    // --- UI HELPERS ---
     function showTab(id) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.getElementById(id).classList.add('active');
@@ -608,15 +667,20 @@
     }
 
     function toggleSettings(v) {
-        ['settings-menu','set-statement','set-security','set-dev', 'set-global'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.classList.add('hidden');
-        });
-        if(v==='menu') document.getElementById('settings-menu').classList.remove('hidden');
-        else if(v==='statement') document.getElementById('set-statement').classList.remove('hidden');
-        else if(v==='security') document.getElementById('set-security').classList.remove('hidden');
-        else if(v==='dev') document.getElementById('set-dev').classList.remove('hidden');
-        else if(v==='global') document.getElementById('set-global').classList.remove('hidden'); 
+        ['settings-menu','set-statement','set-security','set-dev', 'set-global'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+        const target = (v === 'menu') ? 'settings-menu' : `set-${v}`;
+        document.getElementById(target)?.classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    function filterSearch() {
+        const q = document.getElementById('search-input').value.toLowerCase();
+        const res = document.getElementById('search-results'); if(!q) return res.innerHTML = '';
+        res.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q) || (c.fatherName && c.fatherName.toLowerCase().includes(q))).map(c => `
+            <div onclick="toggleSearch(); viewCustomer('${c.id}')" class="p-5 bg-slate-50 rounded-2xl font-bold flex justify-between items-center border cursor-pointer">
+                <div><p>${c.name}</p><p class="text-[10px] text-slate-400">S/O: ${c.fatherName}</p></div>
+                <i data-lucide="chevron-right"></i>
+            </div>`).join('');
         lucide.createIcons();
     }
 
