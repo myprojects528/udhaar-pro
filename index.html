@@ -504,7 +504,7 @@
                 PKR ${c.balance.toLocaleString()}
             </p>
         </div>
-        <button onclick="confirmDelete('${c.id}')" class="p-3 text-rose-500">
+        <button onclick="('${c.id}')" class="p-3 text-rose-500">
             <i data-lucide="trash-2"></i>
         </button>
     </div>`).join('');
@@ -824,7 +824,7 @@ function downloadGlobalCSV() {
         });
         db.ref().update(updates);
     }
-} } }
+
 
         function filterSearch() {
             const q = document.getElementById('search-input').value.toLowerCase();
