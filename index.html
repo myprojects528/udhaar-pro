@@ -359,481 +359,295 @@
     </div>
 
     <script>
-        // --- FIREBASE CONFIG ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyANM3X8DyEji1hUqOOHV7SIBaEXxnvgW7k",
-            authDomain: "udhaarpro.firebaseapp.com",
-            projectId: "udhaarpro",
-            storageBucket: "udhaarpro.firebasestorage.app",
-            messagingSenderId: "230308698204",
-            appId: "1:230308698204:web:cb0776e94414b74f2b2e99",
-            measurementId: "G-N7PFENLW7S",
-            databaseURL: "https://udhaarpro-default-rtdb.firebaseio.com/"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+    // --- FIREBASE CONFIG ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyANM3X8DyEji1hUqOOHV7SIBaEXxnvgW7k",
+        authDomain: "udhaarpro.firebaseapp.com",
+        projectId: "udhaarpro",
+        storageBucket: "udhaarpro.firebasestorage.app",
+        messagingSenderId: "230308698204",
+        appId: "1:230308698204:web:cb0776e94414b74f2b2e99",
+        measurementId: "G-N7PFENLW7S",
+        databaseURL: "https://udhaarpro-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-        let appData = { customers: [], allTransactions: [], summary: {} };
-        let currentPinHash = ""; let currentMode = "existing"; let selectedStatementCust = null;
+    let appData = { customers: [], allTransactions: [], summary: {} };
+    let currentPinHash = ""; 
+    let currentMode = "existing"; 
+    let selectedStatementCustId = null;
 
-        // --- SECURITY ---
-        function initSecurity() {
-            db.ref('settings/pinHash').once('value', (snap) => {
-                const hash = snap.val();
-                if (!hash) {
-                    const defaultHash = CryptoJS.SHA256("1234").toString();
-                    db.ref('settings/pinHash').set(defaultHash); currentPinHash = defaultHash;
-                } else { currentPinHash = hash; }
-                document.getElementById('lock-status').innerText = "Security Sync OK";
-                document.getElementById('pin-inputs').classList.remove('hidden');
-                document.getElementById('d1').focus();
-                lucide.createIcons();
-            });
-        }
-
-        function moveTab(current, nextID) { if (current.value.length >= 1) document.getElementById(nextID).focus(); }
-
-        function checkAndUnlock() {
-            const entered = document.getElementById('d1').value + document.getElementById('d2').value + document.getElementById('d3').value + document.getElementById('d4').value;
-            if(entered.length < 4) return;
-            if (CryptoJS.SHA256(entered).toString() === currentPinHash) {
-                document.getElementById('app-lock').style.display = 'none';
-                document.body.classList.remove('overflow-hidden');
-                refreshData(); 
-            } else {
-                const card = document.getElementById('pin-card'); card.classList.add('shake');
-                document.getElementById('lock-error').classList.remove('hidden');
-                setTimeout(() => {
-                    card.classList.remove('shake');
-                    ['d1','d2','d3','d4'].forEach(id => document.getElementById(id).value = '');
-                    document.getElementById('d1').focus();
-                }, 400);
-            }
-        }
-
-        function resetAppPin() {
-            const oldP = document.getElementById('old-pin').value;
-            const newP = document.getElementById('new-pin').value;
-            const msg = document.getElementById('pin-reset-msg');
-            if(CryptoJS.SHA256(oldP).toString() === currentPinHash) {
-                const newHash = CryptoJS.SHA256(newP).toString();
-                db.ref('settings/pinHash').set(newHash).then(() => {
-                    currentPinHash = newHash; msg.innerText = "PIN Updated!"; msg.className = "text-emerald-500 font-bold block mt-2 uppercase text-[15px]"; msg.classList.remove('hidden');
-                });
-            } else { msg.innerText = "Wrong Current PIN!"; msg.className = "text-rose-500 font-bold block mt-2 uppercase text-[15px]"; msg.classList.remove('hidden'); }
-        }
-
-        // --- CORE LOGIC ---
-        function refreshData() {
-    db.ref('transactions').on('value', (snapshot) => {
-        const raw = snapshot.val() || {};
-        let customers = {}, allTxns = [], totalRecovered = 0, totalGivenEver = 0;
-        
-        Object.keys(raw).forEach(key => {
-            let t = raw[key];
-            // Agar purana data hai jisme ID nahi hai, toh name ko hi ID bana lo backup ke liye
-            let uid = t.customerId || t.name; 
-
-            if (!customers[uid]) {
-                customers[uid] = { 
-                    id: uid, 
-                    name: t.name, 
-                    fatherName: t.fatherName, 
-                    totalUdhaar: 0, 
-                    totalPaid: 0, 
-                    balance: 0, 
-                    history: [] 
-                };
-            }
-            
-            let val = Number(t.amount) || 0;
-            if (t.type === 'Udhaar') { 
-                customers[uid].totalUdhaar += val; 
-                customers[uid].balance += val; 
-                totalGivenEver += val; 
-            } else { 
-                customers[uid].totalPaid += val; 
-                customers[uid].balance -= val; 
-                totalRecovered += val; 
-            }
-            
-            const txnObj = { ...t, id: key, customerId: uid };
-            allTxns.push(txnObj); 
-            customers[uid].history.push(txnObj);
+    // --- SECURITY ---
+    function initSecurity() {
+        db.ref('settings/pinHash').once('value', (snap) => {
+            const hash = snap.val();
+            if (!hash) {
+                const defaultHash = CryptoJS.SHA256("1234").toString();
+                db.ref('settings/pinHash').set(defaultHash); 
+                currentPinHash = defaultHash;
+            } else { currentPinHash = hash; }
+            document.getElementById('lock-status').innerText = "Security Sync OK";
+            document.getElementById('pin-inputs').classList.remove('hidden');
+            document.getElementById('d1').focus();
+            lucide.createIcons();
         });
-
-        const cList = Object.values(customers).sort((a,b) => a.name.localeCompare(b.name));
-        appData = { 
-            customers: cList, 
-            allTransactions: [...allTxns].reverse(), 
-            recentTransactions: allTxns.slice(-5).reverse(), 
-            summary: { totalGivenEver, marketBalance: cList.reduce((a,b)=>a+(b.balance>0?b.balance:0),0), totalRecovered, totalCustomers: cList.length } 
-        };
-        renderUI(appData);
-    });
-}
-
-        function renderUI(data) {
-            const fG = `PKR ${data.summary.totalGivenEver.toLocaleString()}`;
-            const fU = `PKR ${data.summary.marketBalance.toLocaleString()}`;
-            const fR = `PKR ${data.summary.totalRecovered.toLocaleString()}`;
-            ['stat-given','stat-given-m'].forEach(i => document.getElementById(i).innerText = fG);
-            ['stat-udhaar','stat-udhaar-m'].forEach(i => document.getElementById(i).innerText = fU);
-            ['stat-recovered','stat-recovered-m'].forEach(i => document.getElementById(i).innerText = fR);
-            ['stat-customers','stat-customers-m'].forEach(i => document.getElementById(i).innerText = data.summary.totalCustomers);
-            
-            // Recent Log on Dashboard
-            document.getElementById('recent-txns').innerHTML = data.recentTransactions.map(t => `
-                 <div onclick="openReceipt('${t.id}')" class="p-5 flex justify-between items-center text-sm font-bold cursor-pointer hover:bg-slate-50">
-        <div>
-            <p>${t.name}</p>
-            <!-- Father Name niche add kiya -->
-            <p class="text-[8px] text-slate-400 font-bold uppercase">S/O: ${t.fatherName || '---'}</p>
-            <p class="text-[9px] text-slate-400 uppercase font-normal mt-1">${t.date}</p>
-        </div>
-        <p class="${t.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p>
-    </div>`).join('');
-
-            // Customer List
-            document.getElementById('customer-list-ui').innerHTML = data.customers.map(c => `
-    <div class="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 ${c.balance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'} flex justify-between items-center">
-        <div onclick="viewCustomer('${c.id}')" class="flex-1 cursor-pointer">
-            <h4 class="font-black text-slate-800 text-lg leading-tight">${c.name}</h4>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tight mb-2">S/O: ${c.fatherName || '---'}</p>
-            <p class="text-xl font-black ${c.balance > 0 ? 'text-rose-500' : 'text-emerald-600'}">
-                PKR ${c.balance.toLocaleString()}
-            </p>
-        </div>
-        <button onclick="('${c.id}')" class="p-3 text-rose-500">
-            <i data-lucide="trash-2"></i>
-        </button>
-    </div>`).join('');
-            
-            // Full Transaction Records Tab (FIXED: Added Description Here)
-            document.getElementById('full-txn-list').innerHTML = data.allTransactions.map(t => `
-                <div onclick="openReceipt('${t.id}')" class="bg-white p-5 rounded-2xl flex justify-between items-center shadow-sm font-bold text-sm cursor-pointer border hover:border-slate-200">
-        <div class="flex-1">
-            <div class="flex items-center gap-2">
-                <div>
-                    <p class="text-slate-800">${t.name}</p>
-                    <p class="text-[9px] text-slate-400 font-bold uppercase">S/O: ${t.fatherName || 'N/A'}</p>
-                </div>
-                <span class="text-[8px] px-2 py-0.5 rounded-full uppercase tracking-tighter ${t.type === 'Udhaar' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}">
-    ${t.type}
-</span>
-            </div>
-            <p class="text-[9px] text-slate-400 uppercase mt-1">${t.date}</p>
-            ${t.description ? `<p class="text-[10px] text-slate-500 font-medium italic mt-1 border-l-2 border-emerald-100 pl-2">Note: ${t.description}</p>` : ''}
-        </div>
-        <p class="${t.type==='Udhaar'?'text-rose-500':'text-emerald-600'} shrink-0 ml-4">PKR ${Number(t.amount).toLocaleString()}</p>
-    </div>`).join('');
-
-            document.getElementById('m-name-select').innerHTML = data.customers.map(c => 
-    `<option value="${c.id}">${c.name} (S/O ${c.fatherName || '---'})</option>`
-).join('');
-            lucide.createIcons();
-        }
-
-        // --- CUSTOMER EDIT ---
-        function openEditModal(n, f) {
-            document.getElementById('edit-old-name').value = n;
-            document.getElementById('edit-new-name').value = n;
-            document.getElementById('edit-new-father').value = f || "";
-            document.getElementById('edit-modal').classList.remove('hidden');
-        }
-        function closeEditModal() { document.getElementById('edit-modal').classList.add('hidden'); }
-        function saveCustomerEdit() {
-            const oldN = document.getElementById('edit-old-name').value;
-            const newN = document.getElementById('edit-new-name').value;
-            const newF = document.getElementById('edit-new-father').value;
-            const updates = {};
-            appData.allTransactions.filter(t => t.name === oldN).forEach(t => {
-                updates[`/transactions/${t.id}/name`] = newN;
-                updates[`/transactions/${t.id}/fatherName`] = newF;
-            });
-            db.ref().update(updates).then(() => { closeEditModal(); refreshData(); showTab('customers'); });
-        }
-
-        // --- STATEMENT SYSTEM ---
-        function filterStatementList() {
-            const q = document.getElementById('statement-search').value.toLowerCase();
-            const drp = document.getElementById('statement-dropdown'); drp.classList.remove('hidden');
-            drp.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q)).map(c => `<div onclick="selectStatementCust('${c.name}')" class="p-4 hover:bg-emerald-50 border-b cursor-pointer font-bold text-sm">${c.name}</div>`).join('');
-        }
-        function selectStatementCust(n) { selectedStatementCust = n; document.getElementById('selected-cust-name').innerText = "Selected: " + n; document.getElementById('date-range-box').classList.remove('hidden'); document.getElementById('statement-dropdown').classList.add('hidden'); }
-        
-        function generatePDF() {
-            const cust = appData.customers.find(c => c.name === selectedStatementCust);
-            const { jsPDF } = window.jspdf; const doc = new jsPDF();
-            doc.setFontSize(20); doc.text("UdhaarPro Report", 15, 20);
-            doc.setFontSize(10); doc.text(`Customer: ${cust.name} | Balance: ${cust.balance}`, 15, 30);
-            const body = cust.history.map(t => [t.date, t.type, t.amount.toLocaleString()]);
-            doc.autoTable({ startY: 40, head: [['Date', 'Type', 'Amount']], body: body });
-            doc.save(`${cust.name}_Statement.pdf`);
-        }
-
-        function downloadCSV() {
-            const cust = appData.customers.find(c => c.name === selectedStatementCust);
-            let csv = "Date,Type,Amount\n" + cust.history.map(t => `${t.date},${t.type},${t.amount}`).join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${cust.name}.csv`; a.click();
-        }
-
-        // --- APP UTILS ---
-        function calculateRealTime() {
-            let bal = 0; let n = (currentMode === 'fixed') ? window.tempFixedName : (currentMode === 'existing' ? document.getElementById('m-name-select').value : "");
-            const c = appData.customers.find(x => x.name === n); if(c) bal = c.balance;
-            const amt = Number(document.getElementById('m-amount').value) || 0;
-            const res = (document.getElementById('m-type').value === 'Udhaar') ? (bal + amt) : (bal - amt);
-            document.getElementById('calc-preview').innerText = "PKR " + res.toLocaleString();
-        }
-
-        function openEntryModal(mode, fixedName = null) {
-            currentMode = mode; document.getElementById('modal').classList.remove('hidden'); document.getElementById('txnForm').reset();
-            document.getElementById('name-input-container').classList.toggle('hidden', mode === 'new' || mode === 'fixed');
-            document.getElementById('new-name-container').classList.toggle('hidden', mode !== 'new');
-            if(mode === 'fixed') window.tempFixedName = fixedName; calculateRealTime();
-        }
-
-        function showTab(id) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            document.getElementById('app-title').innerText = id.toUpperCase();
-            document.getElementById('back-btn').classList.toggle('hidden', id !== 'customer-profile');
-            if(id === 'settings') toggleSettings('menu');
-            lucide.createIcons();
-        }
-
-        function toggleSettings(v) {
-    // Sab ko hide karo pehle
-    ['settings-menu','set-statement','set-security','set-dev', 'set-global'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.classList.add('hidden');
-    });
-    // Jo click kiya usay show karo
-    if(v==='menu') document.getElementById('settings-menu').classList.remove('hidden');
-    else if(v==='statement') document.getElementById('set-statement').classList.remove('hidden');
-    else if(v==='security') document.getElementById('set-security').classList.remove('hidden');
-    else if(v==='dev') document.getElementById('set-dev').classList.remove('hidden');
-    else if(v==='global') document.getElementById('set-global').classList.remove('hidden'); 
-    lucide.createIcons();
-}
-
-        function viewCustomer(id) {
-    const c = appData.customers.find(x => x.id === id); 
-    if(!c) return;
-    window.tempFixedId = id;
-            showTab('customer-profile');
-            document.getElementById('profile-detail-view').innerHTML = `
-                <div class="bg-[#064e3b] p-8 rounded-[2.5rem] text-white shadow-xl relative">
-                    <button onclick="openEditModal('${c.name}', '${c.fatherName}')" class="absolute top-8 right-8 p-3 bg-white/10 rounded-full"><i data-lucide="edit-3" class="w-5 h-5"></i></button>
-                    <h2 class="text-3xl font-black mb-1">${c.name}</h2><p class="text-white/60 mb-8 font-bold uppercase text-[10px] tracking-widest">${c.fatherName ? 'S/O ' + c.fatherName : 'PROFILE'}</p>
-                    <div class="grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
-                        <div class="bg-white/10 p-3 rounded-2xl">Taken<br>${c.totalUdhaar.toLocaleString()}</div>
-                        <div class="bg-white/10 p-3 rounded-2xl">Paid<br>${c.totalPaid.toLocaleString()}</div>
-                        <div class="bg-white/20 p-3 rounded-2xl border border-white/10">Bal<br>${c.balance.toLocaleString()}</div>
-                    </div>
-                    <button onclick="openEntryModal('fixed', '${c.name}')" class="w-full bg-white text-[#064e3b] py-4 rounded-2xl font-black mt-8 shadow-lg uppercase text-xs">Add Record</button>
-                </div>
-                <div class="bg-white rounded-[2rem] shadow-sm border mt-6 overflow-hidden">
-                    <div class="p-5 font-black border-b text-slate-700">History Log</div>
-                    <div class="divide-y">${c.history.slice().reverse().map(h => `<div onclick="openReceipt('${h.id}')" class="p-4 flex justify-between items-center text-sm font-bold cursor-pointer"><div><p class="text-[10px] uppercase">${h.date}</p><p class="text-[10px] text-slate-400 font-normal">${h.description || ''}</p></div><p class="${h.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">PKR ${h.amount.toLocaleString()}</p></div>`).join('')}</div>
-                </div>`;
-            lucide.createIcons();
-        }
-
-        document.getElementById('txnForm').onsubmit = (e) => {
-    e.preventDefault();
-    
-    let custId, finalName, finalFather;
-
-    if (currentMode === 'new') {
-        // Naya unique number generate karein
-        custId = "C" + Date.now(); 
-        finalName = document.getElementById('m-name-text').value;
-        finalFather = document.getElementById('m-father-name').value;
-    } else if (currentMode === 'fixed') {
-        // Agar profile ke andar se add ho raha hai
-        custId = window.tempFixedId; 
-        let c = appData.customers.find(x => x.id === custId);
-        finalName = c.name;
-        finalFather = c.fatherName;
-    } else {
-        // Existing dropdown se
-        custId = document.getElementById('m-name-select').value;
-        let c = appData.customers.find(x => x.id === custId);
-        finalName = c.name;
-        finalFather = c.fatherName;
     }
 
-    const data = { 
-        customerId: custId,
-        name: finalName, 
-        fatherName: finalFather, 
-        amount: document.getElementById('m-amount').value, 
-        type: document.getElementById('m-type').value, 
-        description: document.getElementById('m-desc').value, 
-        date: new Date().toLocaleDateString('en-GB'), 
-        timestamp: Date.now() 
+    function moveTab(current, nextID) { if (current.value.length >= 1) document.getElementById(nextID).focus(); }
+
+    function checkAndUnlock() {
+        const entered = document.getElementById('d1').value + document.getElementById('d2').value + document.getElementById('d3').value + document.getElementById('d4').value;
+        if(entered.length < 4) return;
+        if (CryptoJS.SHA256(entered).toString() === currentPinHash) {
+            document.getElementById('app-lock').style.display = 'none';
+            document.body.classList.remove('overflow-hidden');
+            refreshData(); 
+        } else {
+            const card = document.getElementById('pin-card'); card.classList.add('shake');
+            document.getElementById('lock-error').classList.remove('hidden');
+            setTimeout(() => {
+                card.classList.remove('shake');
+                ['d1','d2','d3','d4'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('d1').focus();
+            }, 400);
+        }
+    }
+
+    function resetAppPin() {
+        const oldP = document.getElementById('old-pin').value;
+        const newP = document.getElementById('new-pin').value;
+        const msg = document.getElementById('pin-reset-msg');
+        if(CryptoJS.SHA256(oldP).toString() === currentPinHash) {
+            const newHash = CryptoJS.SHA256(newP).toString();
+            db.ref('settings/pinHash').set(newHash).then(() => {
+                currentPinHash = newHash; 
+                msg.innerText = "PIN Updated!"; 
+                msg.className = "text-emerald-500 font-bold block mt-2 uppercase"; 
+                msg.classList.remove('hidden');
+            });
+        } else { 
+            msg.innerText = "Wrong Current PIN!"; 
+            msg.className = "text-rose-500 font-bold block mt-2 uppercase"; 
+            msg.classList.remove('hidden'); 
+        }
+    }
+
+    // --- CORE LOGIC ---
+    function refreshData() {
+        db.ref('transactions').on('value', (snapshot) => {
+            const raw = snapshot.val() || {};
+            let customers = {}, allTxns = [], totalRecovered = 0, totalGivenEver = 0;
+            
+            Object.keys(raw).forEach(key => {
+                let t = raw[key];
+                let uid = t.customerId || t.name; // ID grouping
+
+                if (!customers[uid]) {
+                    customers[uid] = { 
+                        id: uid, name: t.name, fatherName: t.fatherName, 
+                        totalUdhaar: 0, totalPaid: 0, balance: 0, history: [] 
+                    };
+                }
+                
+                let val = Number(t.amount) || 0;
+                if (t.type === 'Udhaar') { 
+                    customers[uid].totalUdhaar += val; 
+                    customers[uid].balance += val; 
+                    totalGivenEver += val; 
+                } else { 
+                    customers[uid].totalPaid += val; 
+                    customers[uid].balance -= val; 
+                    totalRecovered += val; 
+                }
+                const txnObj = { ...t, id: key, customerId: uid };
+                allTxns.push(txnObj); 
+                customers[uid].history.push(txnObj);
+            });
+
+            const cList = Object.values(customers).sort((a,b) => a.name.localeCompare(b.name));
+            appData = { 
+                customers: cList, 
+                allTransactions: [...allTxns].reverse(), 
+                recentTransactions: allTxns.slice(-5).reverse(), 
+                summary: { 
+                    totalGivenEver, 
+                    marketBalance: cList.reduce((a,b)=>a+(b.balance>0?b.balance:0),0), 
+                    totalRecovered, 
+                    totalCustomers: cList.length 
+                } 
+            };
+            renderUI(appData);
+        });
+    }
+
+    function renderUI(data) {
+        // Summary Stats
+        const fG = `PKR ${data.summary.totalGivenEver.toLocaleString()}`;
+        const fU = `PKR ${data.summary.marketBalance.toLocaleString()}`;
+        const fR = `PKR ${data.summary.totalRecovered.toLocaleString()}`;
+        ['stat-given','stat-given-m'].forEach(i => document.getElementById(i).innerText = fG);
+        ['stat-udhaar','stat-udhaar-m'].forEach(i => document.getElementById(i).innerText = fU);
+        ['stat-recovered','stat-recovered-m'].forEach(i => document.getElementById(i).innerText = fR);
+        ['stat-customers','stat-customers-m'].forEach(i => document.getElementById(i).innerText = data.summary.totalCustomers);
+        
+        // Recent Log
+        document.getElementById('recent-txns').innerHTML = data.recentTransactions.map(t => `
+            <div onclick="openReceipt('${t.id}')" class="p-5 flex justify-between items-center text-sm font-bold cursor-pointer hover:bg-slate-50">
+                <div><p>${t.name}</p><p class="text-[8px] text-slate-400 font-bold uppercase">S/O: ${t.fatherName || '---'}</p><p class="text-[9px] text-slate-400 uppercase font-normal mt-1">${t.date}</p></div>
+                <p class="${t.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">PKR ${Number(t.amount).toLocaleString()}</p>
+            </div>`).join('');
+
+        // Customer List
+        document.getElementById('customer-list-ui').innerHTML = data.customers.map(c => `
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 ${c.balance > 0 ? 'border-l-rose-500' : 'border-l-emerald-500'} flex justify-between items-center">
+                <div onclick="viewCustomer('${c.id}')" class="flex-1 cursor-pointer">
+                    <h4 class="font-black text-slate-800 text-lg leading-tight">${c.name}</h4>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tight mb-2">S/O: ${c.fatherName || '---'}</p>
+                    <p class="text-xl font-black ${c.balance > 0 ? 'text-rose-500' : 'text-emerald-600'}">PKR ${c.balance.toLocaleString()}</p>
+                </div>
+                <button onclick="confirmDelete('${c.id}')" class="p-3 text-rose-500"><i data-lucide="trash-2"></i></button>
+            </div>`).join('');
+        
+        // Dropdown for adding records
+        document.getElementById('m-name-select').innerHTML = data.customers.map(c => 
+            `<option value="${c.id}">${c.name} (S/O ${c.fatherName || '---'})</option>`
+        ).join('');
+        lucide.createIcons();
+    }
+
+    // --- ACTIONS ---
+    function calculateRealTime() {
+        let bal = 0; 
+        let id = (currentMode === 'fixed') ? window.tempFixedId : (currentMode === 'existing' ? document.getElementById('m-name-select').value : null);
+        const c = appData.customers.find(x => x.id === id); 
+        if(c) bal = c.balance;
+        const amt = Number(document.getElementById('m-amount').value) || 0;
+        const res = (document.getElementById('m-type').value === 'Udhaar') ? (bal + amt) : (bal - amt);
+        document.getElementById('calc-preview').innerText = "PKR " + res.toLocaleString();
+    }
+
+    function openEntryModal(mode, fixedId = null) {
+        currentMode = mode; document.getElementById('modal').classList.remove('hidden'); document.getElementById('txnForm').reset();
+        document.getElementById('name-input-container').classList.toggle('hidden', mode === 'new' || mode === 'fixed');
+        document.getElementById('new-name-container').classList.toggle('hidden', mode !== 'new');
+        if(mode === 'fixed') window.tempFixedId = fixedId; 
+        calculateRealTime();
+    }
+
+    document.getElementById('txnForm').onsubmit = (e) => {
+        e.preventDefault();
+        let custId, finalName, finalFather;
+        if (currentMode === 'new') {
+            custId = "C" + Date.now(); 
+            finalName = document.getElementById('m-name-text').value;
+            finalFather = document.getElementById('m-father-name').value;
+        } else {
+            custId = (currentMode === 'fixed') ? window.tempFixedId : document.getElementById('m-name-select').value;
+            let c = appData.customers.find(x => x.id === custId);
+            finalName = c.name;
+            finalFather = c.fatherName;
+        }
+        const data = { 
+            customerId: custId, name: finalName, fatherName: finalFather, 
+            amount: document.getElementById('m-amount').value, type: document.getElementById('m-type').value, 
+            description: document.getElementById('m-desc').value, date: new Date().toLocaleDateString('en-GB'), timestamp: Date.now() 
+        };
+        db.ref('transactions').push(data).then(() => { closeModal(); e.target.reset(); });
     };
 
-    db.ref('transactions').push(data).then(() => { 
-        closeModal(); 
-        e.target.reset(); 
-    });
-};
-
-        // --- RECEIPT MODAL LOGIC (FIXED: Added Description) ---
-        function openReceipt(txnId) {
-    const t = appData.allTransactions.find(x => x.id == txnId); if(!t) return;
-    const c = appData.customers.find(x => x.name === t.name);
-    
-    document.getElementById('r-date').innerText = t.date;
-    document.getElementById('r-name').innerText = t.name;
-    document.getElementById('r-father').innerText = t.fatherName || "-"; // Ye line add ki gayi hai
-    document.getElementById('r-type').innerText = t.type;
-    document.getElementById('r-amount').innerText = "PKR " + Number(t.amount).toLocaleString();
-    document.getElementById('r-desc-val').innerText = t.description ? t.description : "-";
-    document.getElementById('r-balance').innerText = "PKR " + (c ? c.balance.toLocaleString() : '0');
-    document.getElementById('receipt-modal').classList.remove('hidden');
-}
-
-
-
-// --- NEW GLOBAL SUMMARY REPORT FUNCTIONS ---
-
-function getAggregatedGlobalData() {
-    const start = document.getElementById('global-start-date').value;
-    const end = document.getElementById('global-end-date').value;
-    
-    if(!start || !end) { alert("Please select both dates"); return null; }
-
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    endDate.setHours(23, 59, 59); // Poora din cover karne ke liye
-
-    const customerSummary = {};
-
-    // Transactions ko filter aur calculate karna
-    appData.allTransactions.forEach(t => {
-        const [d, m, y] = t.date.split('/');
-        const txnDate = new Date(`${y}-${m}-${d}`);
-
-        // Agar transaction select ki gayi dates ke darmiyan hai
-        if (txnDate >= startDate && txnDate <= endDate) {
-            const key = t.name; // Customer ke naam se group karna
-
-            if (!customerSummary[key]) {
-                customerSummary[key] = {
-                    name: t.name,
-                    fatherName: t.fatherName || '---',
-                    totalUdhaar: 0,
-                    totalPaid: 0,
-                    countUdhaar: 0,
-                    countPaid: 0
-                };
-            }
-
-            const val = Number(t.amount) || 0;
-            if (t.type === 'Udhaar') {
-                customerSummary[key].totalUdhaar += val;
-                customerSummary[key].countUdhaar += 1;
-            } else {
-                customerSummary[key].totalPaid += val;
-                customerSummary[key].countPaid += 1;
-            }
-        }
-    });
-
-    return Object.values(customerSummary);
-}
-
-function generateGlobalPDF() {
-    const data = getAggregatedGlobalData();
-    if(!data || data.length === 0) { alert("Is date range mein koi user active nahi mila"); return; }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4'); // A4 size page
-    
-    doc.setFontSize(18);
-    doc.text("UdhaarPro - Active Customers Summary", 15, 20);
-    
-    doc.setFontSize(10);
-    doc.text(`Report Period: ${document.getElementById('global-start-date').value} to ${document.getElementById('global-end-date').value}`, 15, 28);
-    doc.text(`Total Active Customers: ${data.length}`, 15, 33);
-
-    // PDF ke liye Table ka data tayyar karna
-    const tableBody = data.map((c, index) => {
-        const remaining = c.totalUdhaar - c.totalPaid;
-        return [
-            index + 1, // Serial Number
-            c.name,
-            c.fatherName,
-            c.totalUdhaar.toLocaleString(),
-            c.totalPaid.toLocaleString(),
-            remaining.toLocaleString(),
-            `U:${c.countUdhaar} / P:${c.countPaid}` // Total Transactions
-        ];
-    });
-    
-    doc.autoTable({
-        startY: 40,
-        head: [['S.No', 'Customer Name', 'Father Name', 'Total Udhaar', 'Total Paid', 'Remaining', 'Txn Count']],
-        body: tableBody,
-        theme: 'striped',
-        headStyles: { fillColor: [6, 78, 59] }, // Dark Green color
-        styles: { fontSize: 9 }
-    });
-
-    doc.save(`Admin_Summary_Report_${Date.now()}.pdf`);
-}
-
-function downloadGlobalCSV() {
-    const data = getAggregatedGlobalData();
-    if(!data || data.length === 0) { alert("No records found"); return; }
-
-    // CSV ki Pehli line (Headers)
-    let csv = "S.No,Customer Name,Father Name,Total Udhaar,Total Paid,Remaining,Udhaar Count,Paid Count\n";
-    
-    data.forEach((c, index) => {
-        const remaining = c.totalUdhaar - c.totalPaid;
-        csv += `${index + 1},"${c.name}","${c.fatherName}",${c.totalUdhaar},${c.totalPaid},${remaining},${c.countUdhaar},${c.countPaid}\n`;
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `Admin_Summary_${Date.now()}.csv`;
-    a.click();
-}
-
-        
-
-        function setType(t) { document.getElementById('m-type').value = t; document.getElementById('btn-udhaar').className = t==='Udhaar'?'p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold':'p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400'; document.getElementById('btn-paid').className = t==='Paid'?'p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold':'p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400'; calculateRealTime(); }
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        function closeChoiceModal() { document.getElementById('choice-modal').classList.add('hidden'); }
-        function openChoiceModal() { document.getElementById('choice-modal').classList.remove('hidden'); }
-        function handleChoice(m) { closeChoiceModal(); openEntryModal(m); }
-        function toggleSearch() { const el = document.getElementById('search-popup'); el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none'; }
-        function closeReceipt() { document.getElementById('receipt-modal').classList.add('hidden'); }
-        function confirmDelete(id) {
-    if(confirm("Is customer ka sara record delete kar dein?")) {
-        const updates = {};
-        appData.allTransactions.filter(t => (t.customerId === id || t.name === id)).forEach(t => {
-            updates[`/transactions/${t.id}`] = null;
-        });
-        db.ref().update(updates);
+    function viewCustomer(id) {
+        const c = appData.customers.find(x => x.id === id); if(!c) return;
+        window.tempFixedId = id; showTab('customer-profile');
+        document.getElementById('profile-detail-view').innerHTML = `
+            <div class="bg-[#064e3b] p-8 rounded-[2.5rem] text-white shadow-xl relative">
+                <h2 class="text-3xl font-black mb-1">${c.name}</h2><p class="text-white/60 mb-8 font-bold uppercase text-[10px]">S/O: ${c.fatherName || '---'}</p>
+                <div class="grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
+                    <div class="bg-white/10 p-3 rounded-2xl">Taken<br>${c.totalUdhaar.toLocaleString()}</div>
+                    <div class="bg-white/10 p-3 rounded-2xl">Paid<br>${c.totalPaid.toLocaleString()}</div>
+                    <div class="bg-white/20 p-3 rounded-2xl">Bal<br>${c.balance.toLocaleString()}</div>
+                </div>
+                <button onclick="openEntryModal('fixed', '${c.id}')" class="w-full bg-white text-[#064e3b] py-4 rounded-2xl font-black mt-8 shadow-lg uppercase text-xs">Add Record</button>
+            </div>
+            <div class="bg-white rounded-[2rem] shadow-sm border mt-6 overflow-hidden">
+                <div class="p-5 font-black border-b text-slate-700">History Log</div>
+                <div class="divide-y">${c.history.slice().reverse().map(h => `<div onclick="openReceipt('${h.id}')" class="p-4 flex justify-between items-center text-sm font-bold cursor-pointer"><div><p class="text-[10px] uppercase">${h.date}</p></div><p class="${h.type==='Udhaar'?'text-rose-500':'text-emerald-600'}">PKR ${h.amount.toLocaleString()}</p></div>`).join('')}</div>
+            </div>`;
+        lucide.createIcons();
     }
 
-
-        function filterSearch() {
-            const q = document.getElementById('search-input').value.toLowerCase();
-            const res = document.getElementById('search-results'); if(!q) return res.innerHTML = '';
-            res.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q) || (c.fatherName && c.fatherName.toLowerCase().includes(q))).map(c => `<div onclick="toggleSearch(); viewCustomer('${c.name}')" class="p-5 bg-slate-50 rounded-2xl font-bold flex justify-between items-center border cursor-pointer"><div><p>${c.name}</p><p class="text-[10px] text-slate-400">Bal: PKR ${c.balance.toLocaleString()}</p></div><i data-lucide="chevron-right"></i></div>`).join('');
-            lucide.createIcons();
+    function confirmDelete(id) {
+        if(confirm("Is customer ka mukammal record delete kar dein?")) {
+            const updates = {};
+            appData.allTransactions.filter(t => (t.customerId === id || t.name === id)).forEach(t => {
+                updates[`/transactions/${t.id}`] = null;
+            });
+            db.ref().update(updates);
         }
+    }
 
-        window.onload = () => { lucide.createIcons(); initSecurity(); };
-    </script>
+    function filterSearch() {
+        const q = document.getElementById('search-input').value.toLowerCase();
+        const res = document.getElementById('search-results'); if(!q) return res.innerHTML = '';
+        res.innerHTML = appData.customers.filter(c => c.name.toLowerCase().includes(q) || (c.fatherName && c.fatherName.toLowerCase().includes(q))).map(c => `
+            <div onclick="toggleSearch(); viewCustomer('${c.id}')" class="p-5 bg-slate-50 rounded-2xl font-bold flex justify-between items-center border cursor-pointer">
+                <div><p>${c.name}</p><p class="text-[10px] text-slate-400">Bal: PKR ${c.balance.toLocaleString()}</p></div>
+                <i data-lucide="chevron-right"></i>
+            </div>`).join('');
+        lucide.createIcons();
+    }
+
+    // --- OTHER UI UTILS ---
+    function showTab(id) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.getElementById('app-title').innerText = id.toUpperCase();
+        document.getElementById('back-btn').classList.toggle('hidden', id !== 'customer-profile');
+        if(id === 'settings') toggleSettings('menu');
+        lucide.createIcons();
+    }
+
+    function toggleSettings(v) {
+        ['settings-menu','set-statement','set-security','set-dev', 'set-global'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.classList.add('hidden');
+        });
+        if(v==='menu') document.getElementById('settings-menu').classList.remove('hidden');
+        else if(v==='statement') document.getElementById('set-statement').classList.remove('hidden');
+        else if(v==='security') document.getElementById('set-security').classList.remove('hidden');
+        else if(v==='dev') document.getElementById('set-dev').classList.remove('hidden');
+        else if(v==='global') document.getElementById('set-global').classList.remove('hidden'); 
+        lucide.createIcons();
+    }
+
+    function openReceipt(txnId) {
+        const t = appData.allTransactions.find(x => x.id == txnId); if(!t) return;
+        const c = appData.customers.find(x => x.id === (t.customerId || t.name));
+        document.getElementById('r-date').innerText = t.date;
+        document.getElementById('r-name').innerText = t.name;
+        document.getElementById('r-father').innerText = t.fatherName || "-";
+        document.getElementById('r-type').innerText = t.type;
+        document.getElementById('r-amount').innerText = "PKR " + Number(t.amount).toLocaleString();
+        document.getElementById('r-desc-val').innerText = t.description ? t.description : "-";
+        document.getElementById('r-balance').innerText = "PKR " + (c ? c.balance.toLocaleString() : '0');
+        document.getElementById('receipt-modal').classList.remove('hidden');
+    }
+
+    function setType(t) { 
+        document.getElementById('m-type').value = t; 
+        document.getElementById('btn-udhaar').className = t==='Udhaar'?'p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold':'p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400'; 
+        document.getElementById('btn-paid').className = t==='Paid'?'p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-700 font-bold':'p-4 rounded-xl border-2 border-slate-100 font-black text-slate-400'; 
+        calculateRealTime(); 
+    }
+
+    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+    function closeChoiceModal() { document.getElementById('choice-modal').classList.add('hidden'); }
+    function openChoiceModal() { document.getElementById('choice-modal').classList.remove('hidden'); }
+    function handleChoice(m) { closeChoiceModal(); openEntryModal(m); }
+    function toggleSearch() { const el = document.getElementById('search-popup'); el.style.display = (el.style.display === 'none') ? 'block' : 'none'; }
+    function closeReceipt() { document.getElementById('receipt-modal').classList.add('hidden'); }
+
+    window.onload = () => { initSecurity(); };
+</script>
 </body>
 </html>
